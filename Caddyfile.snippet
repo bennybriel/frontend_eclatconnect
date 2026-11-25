@@ -1,0 +1,26 @@
+# ===============================================================================
+# Caddy Reverse Proxy Snippet for frontend.eclatconnect.com
+# Add this block to your server's Caddyfile (e.g. /etc/caddy/Caddyfile or deploy/Caddyfile)
+# ===============================================================================
+
+frontend.eclatconnect.com {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		-Server
+	}
+
+	# Reverse proxy to the frontend container (listening on port 3090 or internal port 80)
+	reverse_proxy 127.0.0.1:3090 {
+		header_up Host {host}
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-For {remote_host}
+		header_up X-Forwarded-Proto https
+	}
+
+	log {
+		output stdout
+		format console
+	}
+}

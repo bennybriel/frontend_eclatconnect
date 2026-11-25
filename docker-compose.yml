@@ -1,0 +1,28 @@
+# =====================================================================
+# Eclat Connect Frontend — Production Docker Compose
+# Domain: https://frontend.eclatconnect.com
+# =====================================================================
+
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: eclatconnect-frontend:latest
+    container_name: eclat-frontend
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3090}:80"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost/healthz || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - eclat-net
+
+networks:
+  eclat-net:
+    name: eclat-net
+    external: true
