@@ -1,0 +1,673 @@
+import React, { useState, useEffect } from 'react';
+import { useAuth } from './context/AuthContext';
+import { request } from './api/client';
+import { Category, Location, Provider, Listing, ServiceRequest, RequestResponse, NotificationItem, Favorite } from './types';
+
+// Components
+import { Header } from './components/Header';
+import { Footer } from './components/Footer';
+import { MobileBottomNav } from './components/MobileBottomNav';
+import { Toast, ToastNotice } from './components/Toast';
+import { SignInPromptModal } from './components/SignInPromptModal';
+
+// Pages
+import { HomePage } from './pages/HomePage';
+import { DirectoryPage } from './pages/DirectoryPage';
+import { RequestsPage } from './pages/RequestsPage';
+import { PostRequestPage } from './pages/PostRequestPage';
+import { MyRequestsPage } from './pages/MyRequestsPage';
+import { ResponsesPage } from './pages/ResponsesPage';
+import { MyReviewsPage } from './pages/MyReviewsPage';
+import { FavouritesPage } from './pages/FavouritesPage';
+import { VendorWorkspacePage } from './pages/VendorWorkspacePage';
+import { ProviderApplicationPage } from './pages/ProviderApplicationPage';
+import { NewListingPage } from './pages/NewListingPage';
+import { NotificationsPage } from './pages/NotificationsPage';
+import { AccountPage } from './pages/AccountPage';
+import { AuthPage } from './pages/AuthPage';
+import { AdminDashboardPage } from './pages/admin/AdminDashboardPage';
+import { PrivacyPolicyPage } from './pages/legal/PrivacyPolicyPage';
+import { TermsOfServicePage } from './pages/legal/TermsOfServicePage';
+
+// Modals
+import { ListingDetailsModal } from './pages/ListingDetailsModal';
+import { RespondModal } from './pages/RespondModal';
+import { ReportModal } from './pages/ReportModal';
+import { ReviewModal, ReviewTarget } from './pages/ReviewModal';
+
+export const App: React.FC = () => {
+  const { user, isAuthenticated, isAdmin } = useAuth();
+
+  // Initial page based on current URL path
+  const getInitialPage = (): string => {
+    if (typeof window !== 'undefined') {
+      const p = window.location.pathname.toLowerCase();
+      if (p.includes('privacy')) return 'Privacy Policy';
+      if (p.includes('terms')) return 'Terms of Service';
+    }
+    return 'Home';
+  };
+
+  // Navigation state
+  const [page, setPage] = useState<string>(getInitialPage);
+
+  // Global taxonomy & data
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [locations, setLocations] = useState<Location[]>([]);
+  const [items, setItems] = useState<any[]>([]);
+  const [loadingCatalog, setLoadingCatalog] = useState<boolean>(false);
+  const [myProviders, setMyProviders] = useState<Provider[]>([]);
+  const [myListings, setMyListings] = useState<Listing[]>([]);
+  const [myRequests, setMyRequests] = useState<ServiceRequest[]>([]);
+  const [responses, setResponses] = useState<RequestResponse[]>([]);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  // Favourites state (persisted across sessions for logged-in users)
+  const [favoritesList, setFavoritesList] = useState<Favorite[]>([]);
+  const [favoritesMap, setFavoritesMap] = useState<Record<string, boolean>>({});
+  const [showSignInPrompt, setShowSignInPrompt] = useState(false);
+
+  // Admin Data
+  const [adminOverview, setAdminOverview] = useState<any>(null);
+  const [adminProviders, setAdminProviders] = useState<Provider[]>([]);
+  const [adminUsers, setAdminUsers] = useState<any[]>([]);
+  const [adminRoles, setAdminRoles] = useState<any[]>([]);
+  const [adminPermissions, setAdminPermissions] = useState<any[]>([]);
+  const [adminActivityLogs, setAdminActivityLogs] = useState<any[]>([]);
+  const [adminWhatsappLogs, setAdminWhatsappLogs] = useState<any[]>([]);
+  const [adminReports, setAdminReports] = useState<any[]>([]);
+
+  // Search and filter state
+  const [q, setQ] = useState('');
+  const [locationFilter, setLocationFilter] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
+
+  // Modals state
+  const [selectedItem, setSelectedItem] = useState<any | null>(null);
+  const [respondingTo, setRespondingTo] = useState<ServiceRequest | null>(null);
+  const [reportingItem, setReportingItem] = useState<any | null>(null);
+  const [reviewTarget, setReviewTarget] = useState<ReviewTarget | null>(null);
+
+  // Toast feedback
+  const [notice, setNotice] = useState<ToastNotice | null>(null);
+
+  const showToast = (text: string, type: 'info' | 'success' | 'error' = 'info') => {
+    setNotice({ text, type });
+  };
+
+  // Initial Taxonomy fetch
+  useEffect(() => {
+    request<Category[]>('/public/categories').then(setCategories).catch(() => {});
+    request<Location[]>('/public/locations').then(setLocations).catch(() => {});
+  }, []);
+
+  // Sync notifications count & user-specific data
+  const refreshUserData = async () => {
+    if (!isAuthenticated) {
+      setMyProviders([]);
+      setMyListings([]);
+      setMyRequests([]);
+      setResponses([]);
+      setNotifications([]);
+      setUnreadCount(0);
+      setFavoritesList([]);
+      setFavoritesMap({});
+      return;
+    }
+
+    try {
+      const [provs, reqs, notes, resps, favs] = await Promise.all([
+        request<Provider[]>('/me/providers').catch(() => []),
+        request<ServiceRequest[]>('/me/requests').catch(() => []),
+        request<NotificationItem[]>('/me/notifications').catch(() => []),
+        request<RequestResponse[]>('/me/responses').catch(() => []),
+        request<Favorite[]>('/me/favorites').catch(() => []),
+      ]);
+
+      setMyProviders(provs);
+      setMyRequests(reqs);
+      setNotifications(notes);
+      setUnreadCount(notes.filter(n => !n.read_at).length);
+      setResponses(resps);
+      setFavoritesList(favs);
+      const map: Record<string, boolean> = {};
+      favs.forEach(f => {
+        if (f.item_id) map[f.item_id] = true;
+        if (f.listing_id) map[f.listing_id] = true;
+      });
+      setFavoritesMap(map);
+
+      if (provs.length > 0) {
+        request<Listing[]>('/me/listings').then(setMyListings).catch(() => []);
+      }
+    } catch {}
+  };
+
+  const handleToggleFavorite = async (item: any) => {
+    if (!isAuthenticated) {
+      setShowSignInPrompt(true);
+      return;
+    }
+
+    const itemId = String(item.id || item.item_id);
+    const currentlyFav = !!favoritesMap[itemId];
+
+    // Optimistic UI update
+    setFavoritesMap(prev => ({ ...prev, [itemId]: !currentlyFav }));
+
+    try {
+      const res = await request<{ is_favorite: boolean; message: string }>('/me/favorites/toggle', 'POST', {
+        item_id: itemId,
+        item_title: item.name || item.title,
+        item_type: item.kind || item.type || 'PRODUCT',
+        item_price: item.price || item.budget,
+        item_location: item.location,
+        item_image_url: item.image_url || (item.images ? item.images.split(',')[0] : undefined),
+        provider_name: item.provider_name,
+        phone: item.phone,
+        whatsapp: item.whatsapp,
+        description: item.description,
+      });
+
+      setFavoritesMap(prev => ({ ...prev, [itemId]: res.is_favorite }));
+      showToast(res.message, res.is_favorite ? 'success' : 'info');
+
+      // Refresh favourites list
+      request<Favorite[]>('/me/favorites').then(favs => {
+        setFavoritesList(favs);
+        const map: Record<string, boolean> = {};
+        favs.forEach(f => {
+          if (f.item_id) map[f.item_id] = true;
+          if (f.listing_id) map[f.listing_id] = true;
+        });
+        setFavoritesMap(map);
+      }).catch(() => {});
+    } catch (err: any) {
+      setFavoritesMap(prev => ({ ...prev, [itemId]: currentlyFav }));
+      showToast(err.message, 'error');
+    }
+  };
+
+  const handleRemoveFavorite = async (itemId: string) => {
+    setFavoritesMap(prev => ({ ...prev, [itemId]: false }));
+    setFavoritesList(prev => prev.filter(f => f.item_id !== itemId));
+    try {
+      await request(`/me/favorites/${itemId}`, 'DELETE');
+      showToast('Removed from favourites', 'info');
+    } catch (err: any) {
+      showToast(err.message, 'error');
+      request<Favorite[]>('/me/favorites').then(setFavoritesList).catch(() => {});
+    }
+  };
+
+  useEffect(() => {
+    refreshUserData();
+  }, [isAuthenticated, user?.id]);
+
+  // Load catalog items based on current page
+  const loadCatalogData = async (override?: { q?: string; location_id?: string; category_id?: string }) => {
+    setLoadingCatalog(true);
+    try {
+      const activeQ = override?.q !== undefined ? override.q : q;
+      const activeLoc = override?.location_id !== undefined ? override.location_id : locationFilter;
+      const activeCat = override?.category_id !== undefined ? override.category_id : categoryFilter;
+
+      const params = new URLSearchParams();
+      if (activeQ) params.set('q', activeQ);
+      if (activeLoc) params.set('location_id', activeLoc);
+      if (activeCat) params.set('category_id', activeCat);
+
+      const qs = params.toString() ? `?${params.toString()}` : '';
+
+      if (page === 'Businesses') {
+        const data = await request(`/public/providers${qs}`);
+        setItems(data.filter((p: any) => p.type === 'BUSINESS'));
+      } else if (page === 'Professionals' || page === 'Artisans') {
+        const data = await request(`/public/providers${qs}`);
+        setItems(data.filter((p: any) => p.type === 'PROFESSIONAL'));
+      } else if (page === 'Products') {
+        params.set('kind', 'PRODUCT');
+        const data = await request(`/public/listings?${params.toString()}`);
+        setItems(data);
+      } else if (page === 'Pre-owned') {
+        const [preownedReqs, usedListings] = await Promise.all([
+          request<any[]>(`/public/requests?request_type=PREOWNED_SALE${qs ? `&${params.toString()}` : ''}`).catch(() => []),
+          request<any[]>(`/public/listings?kind=PRODUCT&q=used${activeLoc ? `&location_id=${activeLoc}` : ''}${activeCat ? `&category_id=${activeCat}` : ''}`).catch(() => []),
+        ]);
+        setItems([...preownedReqs, ...usedListings]);
+      } else if (page === 'Services') {
+        params.set('kind', 'SERVICE');
+        const data = await request(`/public/listings?${params.toString()}`);
+        setItems(data);
+      } else if (page === 'Requests') {
+        const data = await request(`/public/requests${qs}`);
+        setItems(data.filter((r: any) => r.request_type !== 'PREOWNED_SALE'));
+      } else if (page === 'My Requests') {
+        const data = await request('/me/requests');
+        setMyRequests(data);
+      } else if (page === 'Responses') {
+        const data = await request('/me/responses');
+        setResponses(data);
+      } else if (page === 'Notifications') {
+        const data = await request('/me/notifications');
+        setNotifications(data);
+        setUnreadCount(data.filter((n: any) => !n.read_at).length);
+      } else if (page === 'Vendor Workspace' || page === 'Vendor Dashboard') {
+        const [provs, lists, openReqs] = await Promise.all([
+          request<Provider[]>('/me/providers').catch(() => []),
+          request<Listing[]>('/me/listings').catch(() => []),
+          request<ServiceRequest[]>('/public/requests').catch(() => []),
+        ]);
+        setMyProviders(provs);
+        setMyListings(lists);
+        setItems(openReqs);
+      } else if (page === 'Admin' && isAdmin) {
+        const [overview, provs, us, rls, perms, acts, wa, reps] = await Promise.all([
+          request('/admin/overview').catch(() => null),
+          request('/admin/providers').catch(() => []),
+          request('/admin/users').catch(() => []),
+          request('/admin/roles').catch(() => []),
+          request('/admin/permissions').catch(() => []),
+          request('/admin/activity-logs').catch(() => []),
+          request('/admin/whatsapp-logs').catch(() => []),
+          request('/admin/reports').catch(() => []),
+        ]);
+        setAdminOverview(overview);
+        setAdminProviders(provs);
+        setAdminUsers(us);
+        setAdminRoles(rls);
+        setAdminPermissions(perms);
+        setAdminActivityLogs(acts);
+        setAdminWhatsappLogs(wa);
+        setAdminReports(reps);
+      }
+    } catch (err: any) {
+      showToast(err.message, 'error');
+    } finally {
+      setLoadingCatalog(false);
+    }
+  };
+
+  const handleResetFilters = () => {
+    setQ('');
+    setLocationFilter('');
+    setCategoryFilter('');
+    loadCatalogData({ q: '', location_id: '', category_id: '' });
+  };
+
+  useEffect(() => {
+    loadCatalogData();
+  }, [page, locationFilter, categoryFilter]);
+
+  // Handle direct URLs (e.g. /privacy-policy, /terms-of-service, or ?activate=TOKEN)
+  useEffect(() => {
+    const path = window.location.pathname.toLowerCase();
+    if (path === '/privacy-policy' || path === '/privacy' || path === '/privacy-policy.html') {
+      setPage('Privacy Policy');
+    } else if (path === '/terms-of-service' || path === '/terms' || path === '/terms-of-service.html') {
+      setPage('Terms of Service');
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    const activateToken = params.get('activate');
+    if (activateToken) {
+      request<{ message: string }>('/auth/activate', 'POST', { token: activateToken })
+        .then(res => {
+          showToast(res.message || 'Vendor account activated successfully! You may now sign in.', 'success');
+          setPage('Auth');
+          window.history.replaceState({}, document.title, window.location.pathname);
+        })
+        .catch(err => {
+          showToast(err.message, 'error');
+          setPage('Auth');
+        });
+    }
+
+    const handlePopState = () => {
+      const p = window.location.pathname.toLowerCase();
+      if (p === '/privacy-policy' || p === '/privacy' || p === '/privacy-policy.html') {
+        setPage('Privacy Policy');
+      } else if (p === '/terms-of-service' || p === '/terms' || p === '/terms-of-service.html') {
+        setPage('Terms of Service');
+      } else if (p === '/' || p === '') {
+        setPage('Home');
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  const handleNavigate = (targetPage: string) => {
+    setPage(targetPage);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    if (targetPage === 'Privacy Policy') {
+      window.history.pushState(null, '', '/privacy-policy');
+    } else if (targetPage === 'Terms of Service') {
+      window.history.pushState(null, '', '/terms-of-service');
+    } else if (targetPage === 'Home') {
+      window.history.pushState(null, '', '/');
+    }
+  };
+
+  return (
+    <>
+      <Header
+        currentPage={page}
+        onNavigate={handleNavigate}
+        unreadCount={unreadCount}
+      />
+
+      <main className="main-content">
+        <Toast notice={notice} onClose={() => setNotice(null)} />
+
+        {/* 1. Home Module */}
+        {page === 'Home' && (
+          <HomePage
+            categories={categories}
+            locations={locations}
+            selectedCategory={categoryFilter}
+            onSelectCategory={catId => setCategoryFilter(catId)}
+            onNavigate={handleNavigate}
+            onSearch={(searchQ, catId, locId) => {
+              if (searchQ) setQ(searchQ);
+              if (catId) setCategoryFilter(catId);
+              if (locId) setLocationFilter(locId);
+            }}
+            onSelectItem={setSelectedItem}
+            favorites={favoritesMap}
+            onToggleFavorite={handleToggleFavorite}
+          />
+        )}
+
+        {/* 2. Directory Modules (Businesses, Products, Artisans, Services, Pre-owned) */}
+        {['Businesses', 'Products', 'Professionals', 'Artisans', 'Services', 'Pre-owned'].includes(page) && (
+          <DirectoryPage
+            pageTitle={page === 'Professionals' || page === 'Artisans' ? 'Campus Artisans' : page === 'Pre-owned' ? 'Pre-owned Items' : page}
+            items={items}
+            categories={categories}
+            locations={locations}
+            q={q}
+            locationFilter={locationFilter}
+            categoryFilter={categoryFilter}
+            onSearchChange={setQ}
+            onLocationChange={setLocationFilter}
+            onCategoryChange={setCategoryFilter}
+            onFilterSubmit={loadCatalogData}
+            onResetFilters={handleResetFilters}
+            onSelectItem={setSelectedItem}
+            onNavigate={handleNavigate}
+            favorites={favoritesMap}
+            onToggleFavorite={handleToggleFavorite}
+            loading={loadingCatalog}
+          />
+        )}
+
+        {/* 3. Public Service Requests Feed */}
+        {page === 'Requests' && (
+          <RequestsPage
+            requests={items}
+            categories={categories}
+            locations={locations}
+            q={q}
+            locationFilter={locationFilter}
+            categoryFilter={categoryFilter}
+            onSearchChange={setQ}
+            onLocationChange={setLocationFilter}
+            onCategoryChange={setCategoryFilter}
+            onFilterSubmit={loadCatalogData}
+            onResetFilters={handleResetFilters}
+            onNavigate={handleNavigate}
+            onRespondToRequest={setRespondingTo}
+            loading={loadingCatalog}
+          />
+        )}
+
+        {/* 4. Post What I Need (Request Wizard & Pre-owned Sales/Requests) */}
+        {(page === 'Post What I Need' || page === 'Post Pre-owned Request' || page === 'Post Product Request' || page === 'Post Service Request' || page === 'Sell Pre-owned Item') && (
+          <PostRequestPage
+            categories={categories}
+            locations={locations}
+            currentPage={page}
+            defaultMode={
+              page === 'Sell Pre-owned Item'
+                ? 'PREOWNED_SALE'
+                : page === 'Post Pre-owned Request'
+                ? 'PREOWNED_REQUEST'
+                : page === 'Post Product Request'
+                ? 'PRODUCT'
+                : 'SERVICE'
+            }
+            initialLookingForPreowned={page === 'Post Pre-owned Request'}
+            onSuccess={() => {
+              refreshUserData();
+              handleNavigate('My Requests');
+            }}
+            onToast={showToast}
+            onNavigate={handleNavigate}
+          />
+        )}
+
+        {/* 5. My Requests Activity */}
+        {page === 'My Requests' && (
+          <MyRequestsPage
+            requests={myRequests}
+            onRefresh={() => {
+              request<ServiceRequest[]>('/me/requests').then(setMyRequests);
+            }}
+            onNavigate={handleNavigate}
+            onToast={showToast}
+          />
+        )}
+
+        {/* 6. Quotes / Responses Received */}
+        {page === 'Responses' && (
+          <ResponsesPage
+            responses={responses}
+            onNavigate={handleNavigate}
+            onReviewProvider={setReviewTarget}
+          />
+        )}
+
+        {/* 6b. My Customer Reviews */}
+        {page === 'My Reviews' && (
+          <MyReviewsPage
+            onNavigate={handleNavigate}
+            onToast={showToast}
+          />
+        )}
+
+        {/* 6c. My Saved Favourites */}
+        {page === 'Favourites' && (
+          <FavouritesPage
+            favorites={favoritesList}
+            onRemoveFavorite={handleRemoveFavorite}
+            onSelectItem={setSelectedItem}
+            onNavigate={handleNavigate}
+            onToast={showToast}
+          />
+        )}
+
+        {/* 7. Vendor Workspace & Dashboard Portal */}
+        {(page === 'Vendor Workspace' || page === 'Vendor Dashboard') && (
+          <VendorWorkspacePage
+            myProviders={myProviders}
+            myListings={myListings}
+            openRequests={items}
+            categories={categories}
+            locations={locations}
+            unreadCount={unreadCount}
+            onRefresh={() => {
+              refreshUserData();
+              loadCatalogData();
+            }}
+            onNavigate={handleNavigate}
+            onRespondToRequest={setRespondingTo}
+            onToast={showToast}
+          />
+        )}
+
+        {/* 8. Provider Application (Register / Edit Profile) */}
+        {page === 'Provider Application' && (
+          <ProviderApplicationPage
+            categories={categories}
+            locations={locations}
+            existingProvider={myProviders[0] || null}
+            onSuccess={() => {
+              refreshUserData();
+              handleNavigate('Vendor Workspace');
+            }}
+            onToast={showToast}
+            onNavigate={handleNavigate}
+          />
+        )}
+
+        {/* 9. Publish New Listing */}
+        {page === 'New Listing' && (
+          <NewListingPage
+            categories={categories}
+            locations={locations}
+            myProviders={myProviders}
+            onSuccess={() => {
+              refreshUserData();
+              handleNavigate('Vendor Workspace');
+            }}
+            onToast={showToast}
+            onNavigate={handleNavigate}
+          />
+        )}
+
+        {/* 10. Notifications Center */}
+        {page === 'Notifications' && (
+          <NotificationsPage
+            notifications={notifications}
+            onRefresh={refreshUserData}
+            onNavigate={handleNavigate}
+            onToast={showToast}
+          />
+        )}
+
+        {/* 11. User Account & Dashboard */}
+        {page === 'Account' && (
+          <AccountPage
+            myProviders={myProviders}
+            myRequestsCount={myRequests.length}
+            unreadCount={unreadCount}
+            favoritesCount={favoritesList.length}
+            onNavigate={handleNavigate}
+            onToast={showToast}
+          />
+        )}
+
+        {/* 12. Authentication & Onboarding */}
+        {page === 'Auth' && (
+          <AuthPage
+            onSuccess={() => {
+              refreshUserData();
+              handleNavigate('Home');
+            }}
+            onToast={showToast}
+          />
+        )}
+
+        {/* 13. Administrator Console */}
+        {page === 'Admin' && isAdmin && (
+          <AdminDashboardPage
+            overviewData={adminOverview}
+            providers={adminProviders}
+            users={adminUsers}
+            roles={adminRoles}
+            permissions={adminPermissions}
+            activityLogs={adminActivityLogs}
+            whatsappLogs={adminWhatsappLogs}
+            reports={adminReports}
+            categories={categories}
+            locations={locations}
+            onRefresh={loadCatalogData}
+            onNavigate={handleNavigate}
+            onToast={showToast}
+          />
+        )}
+
+        {/* 14. Legal Documents: Privacy Policy & Terms of Service */}
+        {page === 'Privacy Policy' && (
+          <PrivacyPolicyPage onNavigate={handleNavigate} />
+        )}
+        {page === 'Terms of Service' && (
+          <TermsOfServicePage onNavigate={handleNavigate} />
+        )}
+      </main>
+
+      {/* Reusable Modals */}
+      {selectedItem && (
+        <ListingDetailsModal
+          item={selectedItem}
+          isFavorite={selectedItem ? Boolean(favoritesMap[selectedItem.id] || favoritesMap[selectedItem.item_id]) : false}
+          onToggleFavorite={handleToggleFavorite}
+          onClose={() => setSelectedItem(null)}
+          onReport={item => {
+            setSelectedItem(null);
+            setReportingItem(item);
+          }}
+          onToast={showToast}
+        />
+      )}
+
+      {/* Visitor Sign-In Prompt for Favourites */}
+      <SignInPromptModal
+        isOpen={showSignInPrompt}
+        onClose={() => setShowSignInPrompt(false)}
+        onSignIn={() => {
+          setShowSignInPrompt(false);
+          handleNavigate('Auth');
+        }}
+        onRegister={() => {
+          setShowSignInPrompt(false);
+          handleNavigate('Auth');
+        }}
+      />
+
+      {respondingTo && (
+        <RespondModal
+          serviceRequest={respondingTo}
+          myProviders={myProviders}
+          onClose={() => setRespondingTo(null)}
+          onSuccess={() => {
+            setRespondingTo(null);
+            refreshUserData();
+          }}
+          onToast={showToast}
+        />
+      )}
+
+      {reportingItem && (
+        <ReportModal
+          item={reportingItem}
+          onClose={() => setReportingItem(null)}
+          onToast={showToast}
+        />
+      )}
+
+      {reviewTarget && (
+        <ReviewModal
+          target={reviewTarget}
+          onClose={() => setReviewTarget(null)}
+          onSuccess={() => {
+            setReviewTarget(null);
+            refreshUserData();
+          }}
+          onToast={showToast}
+        />
+      )}
+
+      {/* Public Footer (hidden when inside full Portal layout) */}
+      {!['Vendor Workspace', 'Vendor Dashboard'].includes(page) && (
+        <Footer onNavigate={handleNavigate} />
+      )}
+
+      {/* Docked Mobile Bottom Navigation Bar (Visible on mobile viewports) */}
+      <MobileBottomNav currentPage={page} onNavigate={handleNavigate} />
+    </>
+  );
+};
