@@ -9,7 +9,7 @@ services:
       context: .
       dockerfile: Dockerfile
     image: eclatconnect-frontend:latest
-    container_name: eclat-frontend
+    container_name: eclatconnect-frontend
     restart: unless-stopped
     ports:
       - "${PORT:-3090}:80"
