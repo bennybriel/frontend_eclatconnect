@@ -14,9 +14,12 @@ if ! docker network inspect eclat_network >/dev/null 2>&1; then
   docker network create eclat_network || true
 fi
 
-# 2. Build and launch container
+# 2. Recreate container with newly built image
+echo "Stopping any stale container..."
+docker compose down --remove-orphans 2>/dev/null || true
+
 echo "Building and starting container with Docker Compose..."
-docker compose up -d --build --remove-orphans
+docker compose up -d --build --force-recreate
 
 # 3. Connect Caddy to eclat_network if running
 if docker ps -qf "name=ihrms-caddy-1" >/dev/null 2>&1; then
