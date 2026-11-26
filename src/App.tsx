@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { Suspense, lazy, useState, useEffect } from 'react';
 import { useAuth } from './context/AuthContext';
 import { request } from './api/client';
 import { Category, Location, Provider, Listing, ServiceRequest, RequestResponse, NotificationItem, Favorite } from './types';
@@ -14,26 +14,28 @@ import { SignInPromptModal } from './components/SignInPromptModal';
 import { HomePage } from './pages/HomePage';
 import { DirectoryPage } from './pages/DirectoryPage';
 import { RequestsPage } from './pages/RequestsPage';
-import { PostRequestPage } from './pages/PostRequestPage';
-import { MyRequestsPage } from './pages/MyRequestsPage';
-import { ResponsesPage } from './pages/ResponsesPage';
-import { MyReviewsPage } from './pages/MyReviewsPage';
-import { FavouritesPage } from './pages/FavouritesPage';
-import { VendorWorkspacePage } from './pages/VendorWorkspacePage';
-import { ProviderApplicationPage } from './pages/ProviderApplicationPage';
-import { NewListingPage } from './pages/NewListingPage';
-import { NotificationsPage } from './pages/NotificationsPage';
-import { AccountPage } from './pages/AccountPage';
-import { AuthPage } from './pages/AuthPage';
-import { AdminDashboardPage } from './pages/admin/AdminDashboardPage';
-import { PrivacyPolicyPage } from './pages/legal/PrivacyPolicyPage';
-import { TermsOfServicePage } from './pages/legal/TermsOfServicePage';
+import { PostRequestPage, RETURN_TO_KEY } from './pages/PostRequestPage';
 
 // Modals
 import { ListingDetailsModal } from './pages/ListingDetailsModal';
 import { RespondModal } from './pages/RespondModal';
 import { ReportModal } from './pages/ReportModal';
 import { ReviewModal, ReviewTarget } from './pages/ReviewModal';
+
+// Pages most visitors never open on their first visit load on demand, so the first page arrives sooner
+const MyRequestsPage = lazy(() => import('./pages/MyRequestsPage').then(m => ({ default: m.MyRequestsPage })));
+const ResponsesPage = lazy(() => import('./pages/ResponsesPage').then(m => ({ default: m.ResponsesPage })));
+const MyReviewsPage = lazy(() => import('./pages/MyReviewsPage').then(m => ({ default: m.MyReviewsPage })));
+const FavouritesPage = lazy(() => import('./pages/FavouritesPage').then(m => ({ default: m.FavouritesPage })));
+const VendorWorkspacePage = lazy(() => import('./pages/VendorWorkspacePage').then(m => ({ default: m.VendorWorkspacePage })));
+const ProviderApplicationPage = lazy(() => import('./pages/ProviderApplicationPage').then(m => ({ default: m.ProviderApplicationPage })));
+const NewListingPage = lazy(() => import('./pages/NewListingPage').then(m => ({ default: m.NewListingPage })));
+const NotificationsPage = lazy(() => import('./pages/NotificationsPage').then(m => ({ default: m.NotificationsPage })));
+const AccountPage = lazy(() => import('./pages/AccountPage').then(m => ({ default: m.AccountPage })));
+const AuthPage = lazy(() => import('./pages/AuthPage').then(m => ({ default: m.AuthPage })));
+const AdminDashboardPage = lazy(() => import('./pages/admin/AdminDashboardPage').then(m => ({ default: m.AdminDashboardPage })));
+const PrivacyPolicyPage = lazy(() => import('./pages/legal/PrivacyPolicyPage').then(m => ({ default: m.PrivacyPolicyPage })));
+const TermsOfServicePage = lazy(() => import('./pages/legal/TermsOfServicePage').then(m => ({ default: m.TermsOfServicePage })));
 
 export const App: React.FC = () => {
   const { user, isAuthenticated, isAdmin } = useAuth();
@@ -207,6 +209,11 @@ export const App: React.FC = () => {
 
   // Load catalog items based on current page
   const loadCatalogData = async (override?: { q?: string; location_id?: string; category_id?: string }) => {
+    // Personal pages need a signed-in user; they show their own sign-in prompt otherwise
+    const personalPages = ['My Requests', 'Responses', 'Notifications', 'Vendor Workspace', 'Vendor Dashboard'];
+    if (!isAuthenticated && personalPages.includes(page)) {
+      return;
+    }
     setLoadingCatalog(true);
     try {
       const activeQ = override?.q !== undefined ? override.q : q;
@@ -351,16 +358,42 @@ export const App: React.FC = () => {
     }
   };
 
+  // Header search: search the section the visitor is browsing, otherwise Products.
+  // Clears category and area filters so a new keyword search starts fresh.
+  const handleHeaderSearch = (searchQ: string) => {
+    const searchableSections = ['Businesses', 'Products', 'Professionals', 'Artisans', 'Services', 'Pre-owned', 'Requests'];
+    const target = searchableSections.includes(page) ? page : 'Products';
+    setQ(searchQ);
+    setCategoryFilter('');
+    setLocationFilter('');
+    if (target === page) {
+      // Same page: filters may not change, so load the results directly
+      loadCatalogData({ q: searchQ, category_id: '', location_id: '' });
+    } else {
+      handleNavigate(target);
+    }
+  };
+
   return (
     <>
       <Header
         currentPage={page}
         onNavigate={handleNavigate}
+        onSearch={handleHeaderSearch}
         unreadCount={unreadCount}
       />
 
       <main className="main-content">
         <Toast notice={notice} onClose={() => setNotice(null)} />
+
+        <Suspense
+          fallback={
+            <div className="page-loading" role="status">
+              <span className="page-loading-spinner" aria-hidden="true" />
+              Loading…
+            </div>
+          }
+        >
 
         {/* 1. Home Module */}
         {page === 'Home' && (
@@ -371,9 +404,10 @@ export const App: React.FC = () => {
             onSelectCategory={catId => setCategoryFilter(catId)}
             onNavigate={handleNavigate}
             onSearch={(searchQ, catId, locId) => {
-              if (searchQ) setQ(searchQ);
-              if (catId) setCategoryFilter(catId);
-              if (locId) setLocationFilter(locId);
+              // A homepage search replaces any earlier filters, so old ones never linger
+              setQ(searchQ || '');
+              setCategoryFilter(catId || '');
+              setLocationFilter(locId || '');
             }}
             onSelectItem={setSelectedItem}
             favorites={favoritesMap}
@@ -563,9 +597,22 @@ export const App: React.FC = () => {
         {/* 12. Authentication & Onboarding */}
         {page === 'Auth' && (
           <AuthPage
-            onSuccess={() => {
+            onSuccess={signedInUser => {
               refreshUserData();
-              handleNavigate('Home');
+              // Return visitors to what they were doing before signing in
+              let target = 'Home';
+              try {
+                const returnTo = sessionStorage.getItem(RETURN_TO_KEY);
+                if (returnTo) {
+                  target = returnTo;
+                  sessionStorage.removeItem(RETURN_TO_KEY);
+                }
+              } catch {}
+              // Vendors and artisans go to their workspace, which guides them through setup
+              if (target === 'Home' && signedInUser && ['VENDOR', 'ARTISAN'].includes(signedInUser.role)) {
+                target = 'Vendor Workspace';
+              }
+              handleNavigate(target);
             }}
             onToast={showToast}
           />
@@ -597,6 +644,7 @@ export const App: React.FC = () => {
         {page === 'Terms of Service' && (
           <TermsOfServicePage onNavigate={handleNavigate} />
         )}
+        </Suspense>
       </main>
 
       {/* Reusable Modals */}
@@ -645,6 +693,10 @@ export const App: React.FC = () => {
         <ReportModal
           item={reportingItem}
           onClose={() => setReportingItem(null)}
+          onSignIn={() => {
+            setReportingItem(null);
+            handleNavigate('Auth');
+          }}
           onToast={showToast}
         />
       )}

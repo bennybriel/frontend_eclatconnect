@@ -1,4 +1,5 @@
 import React from 'react';
+import { useEscapeToClose } from './useEscapeToClose';
 
 interface SignInPromptModalProps {
   isOpen: boolean;
@@ -13,6 +14,7 @@ export const SignInPromptModal: React.FC<SignInPromptModalProps> = ({
   onSignIn,
   onRegister,
 }) => {
+  useEscapeToClose(onClose, isOpen);
   if (!isOpen) return null;
 
   return (
@@ -43,6 +45,8 @@ export const SignInPromptModal: React.FC<SignInPromptModalProps> = ({
           animation: 'fadeInScale 0.2s ease-out',
         }}
         onClick={e => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
       >
         <button
           type="button"

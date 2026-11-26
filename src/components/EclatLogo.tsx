@@ -33,7 +33,7 @@ export const EclatLogo: React.FC<EclatLogoProps> = ({
       }}
     >
       <img
-        src="/logo-transparent.png?v=20261123b"
+        src={light ? '/logo-light.png' : '/logo-transparent.png?v=20261123b'}
         alt="ECLAT CONNECT Official Emblem"
         style={{
           width: size,
@@ -47,22 +47,22 @@ export const EclatLogo: React.FC<EclatLogoProps> = ({
         <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.05 }}>
           <span
             style={{
-              fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+              fontFamily: 'var(--font-display)',
               fontWeight: 900,
               fontSize: Math.round(size * 0.45),
               letterSpacing: 0.5,
-              color: light ? '#FFFFFF' : 'var(--brand-purple)',
+              color: light ? 'var(--brand-sage)' : 'var(--brand-purple)',
             }}
           >
             ECLAT
           </span>
           <span
             style={{
-              fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+              fontFamily: 'var(--font-display)',
               fontWeight: 800,
               fontSize: Math.round(size * 0.35),
               letterSpacing: 1.5,
-              color: light ? '#F3E8FF' : 'var(--brand-purple)',
+              color: light ? 'var(--brand-sage)' : 'var(--brand-charcoal)',
             }}
           >
             CONNECT

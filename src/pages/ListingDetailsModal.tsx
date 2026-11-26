@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { DirectContactButtons } from '../components/DirectContactButtons';
 import { AvailabilityBadge } from '../components/AvailabilityBadge';
+import { TrustBadge } from '../components/TrustBadge';
+import { useEscapeToClose } from '../components/useEscapeToClose';
+import { isRequestItem, isPreownedSale } from '../utils/trust';
 import { request } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { Review, AvailabilityStatus } from '../types';
@@ -23,12 +26,13 @@ export const ListingDetailsModal: React.FC<ListingDetailsModalProps> = ({
   onToggleFavorite,
 }) => {
   const { user, isAuthenticated } = useAuth();
+  useEscapeToClose(onClose);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loadingReviews, setLoadingReviews] = useState(false);
   const [rating, setRating] = useState(5);
   const [hoverRating, setHoverRating] = useState(0);
   const [comment, setComment] = useState('');
-  const [interactionConfirmed, setInteractionConfirmed] = useState(true);
+  const [interactionConfirmed, setInteractionConfirmed] = useState(false);
   const [submittingReview, setSubmittingReview] = useState(false);
 
   const providerId = item.provider_id || (item.type ? item.id : null);
@@ -83,7 +87,7 @@ export const ListingDetailsModal: React.FC<ListingDetailsModalProps> = ({
         provider_id: providerId,
         rating,
         comment,
-        interaction_confirmed: true,
+        interaction_confirmed: interactionConfirmed,
       });
       onToast('Review submitted successfully! Thank you for rating this provider.', 'success');
       setComment('');
@@ -134,7 +138,7 @@ export const ListingDetailsModal: React.FC<ListingDetailsModalProps> = ({
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: 640 }}>
+      <div className="modal-content" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" style={{ maxWidth: 640 }}>
         <button className="modal-close" onClick={onClose} aria-label="Close modal">
           ×
         </button>
@@ -151,7 +155,8 @@ export const ListingDetailsModal: React.FC<ListingDetailsModalProps> = ({
               🏷️ Pre-owned Campus Item
             </span>
           )}
-          {(isPreowned || item.availability_status) && (
+          {/* Availability applies to items for sale, not to wanted requests or provider profiles */}
+          {(isPreowned || (item.kind === 'PRODUCT' && !isRequestItem(item) && item.availability_status)) && (
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
               {isOwner && <span style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>Status:</span>}
               <AvailabilityBadge
@@ -167,11 +172,7 @@ export const ListingDetailsModal: React.FC<ListingDetailsModalProps> = ({
               Condition: {item.condition}
             </span>
           )}
-          {item.verified ? (
-            <span className="verified-pill">✓ Verified Provider</span>
-          ) : (
-            <span className="approved-pill">✓ Approved Provider</span>
-          )}
+          <TrustBadge item={item} />
           {avgRating && (
             <span style={{ fontSize: 12, fontWeight: 700, color: '#b45309', background: '#fef3c7', padding: '2px 8px', borderRadius: 4, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
               ★ {avgRating} ({reviews.length} review{reviews.length > 1 ? 's' : ''})
@@ -258,8 +259,11 @@ export const ListingDetailsModal: React.FC<ListingDetailsModalProps> = ({
           </div>
         )}
 
-        {(item.price || item.budget) && (
+        {Number(item.price || item.budget) > 0 && (
           <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--brand-purple)', marginBottom: 12 }}>
+            {isRequestItem(item) && !isPreownedSale(item) && (
+              <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-muted)', marginRight: 6 }}>Budget</span>
+            )}
             ₦{Number(item.price || item.budget).toLocaleString()}
           </div>
         )}
@@ -274,12 +278,20 @@ export const ListingDetailsModal: React.FC<ListingDetailsModalProps> = ({
           {item.provider_name && <div style={{ marginTop: 4 }}>🏪 <strong>Vendor:</strong> {item.provider_name}</div>}
         </div>
 
-        {/* Contact Actions */}
+        {/* Customer requests are answered with quotes, not direct contact */}
+        {isRequestItem(item) && !isPreownedSale(item) && (
+          <div style={{ background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: 8, padding: '10px 14px', margin: '16px 0', fontSize: 13, color: '#334155' }}>
+            This is a request from a community member. Providers can reply with a quote from the <strong>Requests</strong> page.
+          </div>
+        )}
+
+        {/* Contact Actions (not for wanted requests, which are answered with quotes) */}
+        {!(isRequestItem(item) && !isPreownedSale(item)) && (item.phone || item.whatsapp || item.customer_phone) && (
         <div style={{ margin: '16px 0' }}>
           <h4 style={{ margin: '0 0 8px 0', fontSize: 14 }}>
             {item.type === 'PROFESSIONAL'
               ? 'Connect with Artisan:'
-              : item.request_type === 'PREOWNED_SALE'
+              : isPreownedSale(item)
               ? 'Connect with Seller:'
               : 'Connect with Provider:'}
           </h4>
@@ -290,7 +302,13 @@ export const ListingDetailsModal: React.FC<ListingDetailsModalProps> = ({
             size="md"
             fullWidth={true}
           />
+          {isPreownedSale(item) && (
+            <small style={{ display: 'block', marginTop: 8, color: 'var(--text-muted)', fontSize: 12 }}>
+              Meet in a public place and check the item before you pay.
+            </small>
+          )}
         </div>
+        )}
 
         {/* Reviews Section */}
         {providerId && (
@@ -309,7 +327,7 @@ export const ListingDetailsModal: React.FC<ListingDetailsModalProps> = ({
                     {'★'.repeat(Math.round(Number(avgRating)))}{'☆'.repeat(5 - Math.round(Number(avgRating)))}
                   </div>
                   <div style={{ fontSize: 12, color: '#713f12', marginTop: 2 }}>
-                    Based on {reviews.length} verified campus review{reviews.length > 1 ? 's' : ''}
+                    Based on {reviews.length} review{reviews.length > 1 ? 's' : ''} from ECLAT CONNECT users
                   </div>
                 </div>
               </div>
@@ -325,8 +343,7 @@ export const ListingDetailsModal: React.FC<ListingDetailsModalProps> = ({
                         <div style={{ width: 26, height: 26, borderRadius: '50%', background: 'var(--brand-purple)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700 }}>
                           {(r.customer_name || 'C').charAt(0).toUpperCase()}
                         </div>
-                        <span style={{ fontWeight: 600, color: '#1e293b' }}>{r.customer_name || 'Verified Customer'}</span>
-                        <span style={{ fontSize: 10.5, background: '#dcfce7', color: '#15803d', padding: '1px 5px', borderRadius: 4, fontWeight: 600 }}>✓ Verified</span>
+                        <span style={{ fontWeight: 600, color: '#1e293b' }}>{r.customer_name || 'Community member'}</span>
                       </div>
                       <span style={{ color: '#eab308', fontSize: 14 }}>
                         {'★'.repeat(r.rating)}{'☆'.repeat(5 - r.rating)}
@@ -356,7 +373,7 @@ export const ListingDetailsModal: React.FC<ListingDetailsModalProps> = ({
                   ✍️ Used this Vendor or Professional? Leave a Review:
                 </div>
                 <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 10 }}>
-                  Share your verified rating and feedback after interacting with, hiring, or purchasing from this provider.
+                  Share your rating and feedback after buying from or hiring this provider.
                 </div>
 
                 {/* Interactive Star Picker */}
@@ -409,7 +426,7 @@ export const ListingDetailsModal: React.FC<ListingDetailsModalProps> = ({
                 </label>
 
                 <button type="submit" className="btn-lime btn-sm" disabled={submittingReview}>
-                  {submittingReview ? 'Submitting...' : 'Post Verified Review'}
+                  {submittingReview ? 'Submitting...' : 'Post Review'}
                 </button>
               </form>
             ) : (

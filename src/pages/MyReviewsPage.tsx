@@ -74,7 +74,7 @@ export const MyReviewsPage: React.FC<MyReviewsPageProps> = ({
           <div style={{ fontSize: 44, marginBottom: 12 }}>✍️</div>
           <h3 style={{ margin: '0 0 8px 0' }}>No Reviews Yet</h3>
           <p style={{ color: 'var(--text-muted)', fontSize: 14, maxWidth: 460, margin: '0 auto 20px auto' }}>
-            When you purchase from a local business or hire an artisan, leave a verified review to help fellow community members find top-rated services!
+            When you purchase from a local business or hire an artisan, leave a review to help fellow community members find top-rated services!
           </p>
           <button className="btn-lime" onClick={() => onNavigate('Businesses')}>
             Browse Campus Providers
@@ -97,9 +97,6 @@ export const MyReviewsPage: React.FC<MyReviewsPageProps> = ({
                     {r.category_name && (
                       <span className="card-badge">{r.category_name}</span>
                     )}
-                    <span style={{ fontSize: 11, background: '#dcfce7', color: '#15803d', padding: '1px 6px', borderRadius: 4, fontWeight: 600 }}>
-                      ✓ Verified Review
-                    </span>
                   </div>
 
                   <h3 style={{ margin: '2px 0 6px 0', fontSize: 17, color: 'var(--charcoal)' }}>

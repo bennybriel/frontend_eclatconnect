@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { request } from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import { useEscapeToClose } from '../components/useEscapeToClose';
 
 export interface ReviewTarget {
   providerId: string;
@@ -22,10 +23,11 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
   onToast,
 }) => {
   const { user } = useAuth();
+  useEscapeToClose(onClose);
   const [rating, setRating] = useState(5);
   const [hoverRating, setHoverRating] = useState(0);
   const [comment, setComment] = useState('');
-  const [interactionConfirmed, setInteractionConfirmed] = useState(true);
+  const [interactionConfirmed, setInteractionConfirmed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const ratingDescriptions: Record<number, string> = {
@@ -55,7 +57,7 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
         provider_id: target.providerId,
         rating,
         comment: comment.trim(),
-        interaction_confirmed: true,
+        interaction_confirmed: interactionConfirmed,
       });
 
       onToast(`⭐ Review posted successfully! Thank you for rating ${target.providerName}.`, 'success');
@@ -69,7 +71,7 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: 540 }}>
+      <div className="modal-content" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" style={{ maxWidth: 540 }}>
         <button className="modal-close" onClick={onClose} aria-label="Close modal">
           ×
         </button>
@@ -81,7 +83,7 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
               Rate & Review Provider
             </h2>
             <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
-              Share verified feedback after using this campus vendor or artisan
+              Share honest feedback after using this provider
             </div>
           </div>
         </div>
@@ -108,7 +110,7 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
             </div>
           )}
           <div style={{ fontSize: 12, color: '#15803d', fontWeight: 600, marginTop: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
-            <span>✓ Verified Campus Transaction</span>
+            <span>You received a quote from this provider on ECLAT CONNECT</span>
           </div>
         </div>
 
@@ -208,7 +210,7 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
               disabled={submitting}
               style={{ fontWeight: 700 }}
             >
-              {submitting ? 'Submitting Review...' : '✓ Submit Verified Review'}
+              {submitting ? 'Submitting Review...' : 'Submit Review'}
             </button>
           </div>
         </form>

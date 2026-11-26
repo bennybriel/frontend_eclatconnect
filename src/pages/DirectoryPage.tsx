@@ -4,6 +4,7 @@ import { getCategoriesForType } from '../components/CategorySelect';
 import { DirectContactButtons } from '../components/DirectContactButtons';
 import { AvailabilityBadge } from '../components/AvailabilityBadge';
 import { DirectoryCardsSkeleton, SearchLoadingBanner } from '../components/SkeletonLoader';
+import { TrustBadge } from '../components/TrustBadge';
 
 interface DirectoryPageProps {
   pageTitle: string;
@@ -71,10 +72,10 @@ export const DirectoryPage: React.FC<DirectoryPageProps> = ({
           <h1 style={{ margin: 0 }}>{pageTitle}</h1>
           <p style={{ margin: '4px 0 0 0', color: 'var(--text-muted)', fontSize: 13.5 }}>
             {pageTitle === 'Campus Artisans' || pageTitle === 'Artisans'
-              ? 'Find trusted artisans, skilled technicians, handwork professionals and repairs across LAUTECH & Ogbomoso.'
+              ? 'Find artisans, technicians and skilled tradespeople across LAUTECH & Ogbomoso.'
               : pageTitle === 'Businesses'
-              ? 'Discover vetted local shops, stores, and merchant brands around LAUTECH & Ogbomoso.'
-              : 'Browse approved listings, local providers, and items.'}
+              ? 'Find local shops, stores and brands around LAUTECH & Ogbomoso.'
+              : 'Browse listings from local providers and sellers around LAUTECH & Ogbomoso.'}
           </p>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -233,17 +234,15 @@ export const DirectoryPage: React.FC<DirectoryPageProps> = ({
                       <AvailabilityBadge status={item.availability_status || 'AVAILABLE'} size="sm" />
                     )}
                   </div>
-                  {item.verified ? (
-                    <span className="verified-pill">✓ Verified {item.type === 'PROFESSIONAL' ? 'Artisan' : 'Provider'}</span>
-                  ) : (
-                    <span className="approved-pill">✓ Approved {item.type === 'PROFESSIONAL' ? 'Artisan' : 'Provider'}</span>
-                  )}
+                  <TrustBadge item={item} />
                   {(Number(item.avg_rating) > 0 || Number(item.provider_rating) > 0) && (
                     <span style={{ fontSize: 11.5, fontWeight: 700, color: '#b45309', background: '#fef3c7', padding: '2px 7px', borderRadius: 4, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
                       ★ {Number(item.avg_rating || item.provider_rating).toFixed(1)}
-                      <span style={{ fontSize: 10.5, color: '#78350f', fontWeight: 500 }}>
-                        ({item.review_count ?? item.provider_review_count ?? 1})
-                      </span>
+                      {(item.review_count ?? item.provider_review_count) != null && (
+                        <span style={{ fontSize: 10.5, color: '#78350f', fontWeight: 500 }}>
+                          ({item.review_count ?? item.provider_review_count})
+                        </span>
+                      )}
                     </span>
                   )}
                 </div>
@@ -311,7 +310,7 @@ export const DirectoryPage: React.FC<DirectoryPageProps> = ({
                   </p>
                 )}
 
-                {(item.price || item.budget) && (
+                {Number(item.price || item.budget) > 0 && (
                   <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--brand-purple)', margin: '4px 0' }}>
                     ₦{Number(item.price || item.budget).toLocaleString()}
                   </div>

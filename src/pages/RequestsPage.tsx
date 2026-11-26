@@ -36,7 +36,7 @@ export const RequestsPage: React.FC<RequestsPageProps> = ({
   onRespondToRequest,
   loading = false,
 }) => {
-  const { user } = useAuth();
+  const { user, isVendor, isAdmin } = useAuth();
 
   return (
     <div>
@@ -176,7 +176,15 @@ export const RequestsPage: React.FC<RequestsPageProps> = ({
                 >
                   View Received Quotes ({req.response_count || 0}) →
                 </button>
-              ) : (
+              ) : !user ? (
+                <button
+                  className="btn-outline btn-sm"
+                  style={{ width: '100%' }}
+                  onClick={() => onNavigate('Auth')}
+                >
+                  Sign in as a provider to send a quote
+                </button>
+              ) : isVendor || isAdmin ? (
                 <button
                   className="btn-lime btn-sm"
                   style={{ width: '100%' }}
@@ -184,6 +192,10 @@ export const RequestsPage: React.FC<RequestsPageProps> = ({
                 >
                   💰 Submit Quote / Offer
                 </button>
+              ) : (
+                <p style={{ margin: 0, fontSize: 12, color: 'var(--text-muted)', textAlign: 'center' }}>
+                  Registered providers can send quotes for this request.
+                </p>
               )}
             </div>
           </article>
