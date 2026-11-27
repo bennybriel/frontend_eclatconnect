@@ -1,4 +1,5 @@
 import React from 'react';
+import { handleLinkClick, pathFor } from '../routing';
 import { Mail, MapPin, MessageCircle, ShieldCheck } from 'lucide-react';
 import { EclatLogo } from './EclatLogo';
 import './Footer.css';
@@ -25,10 +26,8 @@ const ACTION_LINKS = [
 const AREAS = ['Under G', 'Adenike', 'Aroje', 'LAUTECH Campus', 'Takie Square', 'Sabo Market'];
 
 export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
-  const goTo = (page: string) => (e: React.MouseEvent) => {
-    e.preventDefault();
-    onNavigate(page);
-  };
+  // Real links: a normal click stays in the app; Ctrl/Cmd-click opens a new tab
+  const goTo = (page: string) => (e: React.MouseEvent) => handleLinkClick(e, () => onNavigate(page));
 
   return (
     <footer className="fx">
@@ -50,7 +49,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
             <ul>
               {EXPLORE_LINKS.map(link => (
                 <li key={link.page}>
-                  <a href="/" onClick={goTo(link.page)}>{link.label}</a>
+                  <a href={pathFor(link.page)} onClick={goTo(link.page)}>{link.label}</a>
                 </li>
               ))}
             </ul>
@@ -61,7 +60,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
             <ul>
               {ACTION_LINKS.map(link => (
                 <li key={link.page}>
-                  <a href="/" onClick={goTo(link.page)}>{link.label}</a>
+                  <a href={pathFor(link.page)} onClick={goTo(link.page)}>{link.label}</a>
                 </li>
               ))}
             </ul>

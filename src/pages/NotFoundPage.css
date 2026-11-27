@@ -1,0 +1,135 @@
+/* Page not found: the brand's purple and lime, centred and calm */
+
+.nf {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 640px;
+  margin: 40px auto 24px;
+  padding: 48px 28px;
+  border: 1px solid var(--line);
+  border-radius: 28px;
+  background: linear-gradient(160deg, #fff 0%, var(--brand-sage) 160%);
+  text-align: center;
+  box-shadow: 0 1px 2px rgba(30, 29, 27, 0.04), 0 8px 24px rgba(30, 29, 27, 0.06);
+  animation: nf-rise 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@keyframes nf-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+
+.nf-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 72px;
+  height: 72px;
+  border-radius: 22px;
+  background: var(--brand-royal);
+  color: var(--brand-electric);
+  box-shadow: 0 14px 30px rgba(76, 1, 106, 0.22);
+}
+
+.nf-code {
+  margin: 18px 0 4px;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.2em;
+  color: var(--brand-royal);
+}
+
+.nf-title {
+  margin: 0 0 10px;
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  font-weight: 900;
+  line-height: 1.2;
+}
+
+.nf-note {
+  max-width: 44ch;
+  margin: 0 0 24px;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--ink-2);
+}
+
+.nf-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+
+.nf-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 46px;
+  padding: 0 20px;
+  border-radius: 999px;
+  font-size: 14.5px;
+  font-weight: 800;
+  text-decoration: none;
+  transition: transform 0.2s ease;
+}
+
+.nf-btn:hover {
+  transform: translateY(-2px);
+}
+
+.nf-btn-lime {
+  background: var(--brand-electric);
+  color: var(--brand-charcoal);
+}
+
+.nf-btn-outline {
+  border: 1.5px solid var(--line);
+  background: #fff;
+  color: var(--brand-royal);
+}
+
+.nf-btn:focus-visible,
+.nf-links a:focus-visible {
+  outline: 3px solid var(--brand-electric);
+  outline-offset: 3px;
+}
+
+.nf-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 28px;
+}
+
+.nf-links a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--brand-charcoal);
+  font-size: 13.5px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.nf-links a:hover {
+  border-color: var(--brand-royal);
+  color: var(--brand-royal);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nf {
+    animation: none;
+  }
+  .nf-btn {
+    transition: none;
+  }
+}
