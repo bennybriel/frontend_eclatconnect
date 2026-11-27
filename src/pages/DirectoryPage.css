@@ -1,0 +1,926 @@
+/* =====================================================================
+   Directory pages: Businesses, Artisans, Products, Services and Pre-owned.
+   Same brand language as the home page: Royal Purple header band, Electric
+   Lime actions, white cards with the corner circle, Montserrat type.
+   Classes are prefixed "dx-". Global `button` rules are overridden with
+   ".dx button.*".
+   ===================================================================== */
+
+/* Same frame as the header and the home sections */
+.dx {
+  width: min(calc(var(--site-max) - 2 * var(--site-gutter)), calc(100vw - 2 * var(--site-gutter)));
+  margin-left: calc(50% - min(calc(var(--site-max) / 2 - var(--site-gutter)), calc(50vw - var(--site-gutter))));
+  color: var(--brand-charcoal);
+}
+
+.dx-visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* ---------- Buttons ---------- */
+
+.dx button.dx-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 46px;
+  padding: 0 20px;
+  border: 1.5px solid transparent;
+  border-radius: 999px;
+  font-size: 14.5px;
+  font-weight: 800;
+  white-space: nowrap;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.dx button.dx-btn:hover {
+  transform: translateY(-2px);
+}
+
+.dx button.dx-btn-lime,
+.dx button.dx-btn-lime:hover {
+  background: var(--brand-electric);
+  color: var(--brand-charcoal);
+  box-shadow: 0 10px 24px rgba(186, 248, 15, 0.22);
+}
+
+.dx button.dx-btn-ghost {
+  background: transparent;
+  border-color: rgba(243, 254, 214, 0.35);
+  color: var(--brand-sage);
+}
+
+.dx button.dx-btn-ghost:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--brand-electric);
+  color: #fff;
+}
+
+.dx button.dx-btn-royal,
+.dx button.dx-btn-royal:hover {
+  background: var(--brand-royal);
+  color: #fff;
+}
+
+.dx button.dx-btn-outline {
+  background: #fff;
+  border-color: var(--line);
+  color: var(--brand-royal);
+}
+
+.dx button.dx-btn-outline:hover {
+  background: #fff;
+  border-color: var(--brand-royal);
+  color: var(--brand-royal);
+}
+
+.dx button.dx-btn:focus-visible {
+  outline: 3px solid var(--brand-electric);
+  outline-offset: 3px;
+}
+
+/* ---------- Header band ---------- */
+
+.dx-head {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 20px 40px;
+  padding: 36px 44px 60px;
+  overflow: hidden;
+  isolation: isolate;
+  border-radius: 28px;
+  background: var(--brand-royal);
+  color: #fff;
+  animation: dx-rise 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+/* The hero's double circle and swoosh, small, in the corner */
+.dx-head::before,
+.dx-head::after {
+  content: '';
+  position: absolute;
+  z-index: -2;
+  border-radius: 50%;
+}
+
+.dx-head::before {
+  top: -130px;
+  right: -60px;
+  width: 360px;
+  height: 360px;
+  border: 1px solid rgba(243, 254, 214, 0.14);
+  background: rgba(243, 254, 214, 0.04);
+}
+
+.dx-head::after {
+  top: -70px;
+  right: 0;
+  width: 240px;
+  height: 240px;
+  background: #5d0f80;
+}
+
+.dx-head-art {
+  position: absolute;
+  z-index: 0;
+  top: 22px;
+  right: 74px;
+  color: rgba(186, 248, 15, 0.55);
+  animation: dx-float 6s ease-in-out infinite alternate;
+}
+
+@keyframes dx-float {
+  to {
+    transform: translateY(-8px) rotate(-6deg);
+  }
+}
+
+.dx-head-eyebrow {
+  display: inline-block;
+  margin: 0 0 12px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--brand-electric);
+  color: var(--brand-charcoal);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.dx-head-title {
+  margin: 0 0 8px;
+  color: #fff;
+  font-size: clamp(2rem, 3.2vw, 2.9rem);
+  font-weight: 900;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+}
+
+.dx-head-promise {
+  max-width: 60ch;
+  margin: 0 0 14px;
+  font-size: 15.5px;
+  line-height: 1.55;
+  color: rgba(243, 254, 214, 0.86);
+}
+
+.dx-head-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+}
+
+/* Lime "live" dot with a soft pulse */
+.dx-head-dot {
+  position: relative;
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--brand-electric);
+}
+
+.dx-head-dot::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--brand-electric);
+  animation: dx-pulse 2.4s ease-out infinite;
+}
+
+@keyframes dx-pulse {
+  0% {
+    opacity: 0.7;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(2.8);
+  }
+}
+
+.dx-head-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+@keyframes dx-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+
+/* ---------- Filters ---------- */
+
+.dx-filters {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(190px, 250px) minmax(200px, 230px);
+  gap: 10px;
+  margin: -22px 28px 0;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  background: #fff;
+  box-shadow: 0 18px 40px rgba(76, 1, 106, 0.14);
+  animation: dx-rise 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) 0.08s both;
+}
+
+.dx-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 52px;
+  padding: 0 14px;
+  border: 1.5px solid transparent;
+  border-radius: 16px;
+  background: #f5f3f7;
+  color: var(--brand-royal);
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.dx-field:focus-within {
+  border-color: var(--brand-royal);
+  background: #fff;
+}
+
+.dx-field input,
+.dx-field select {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--brand-charcoal);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  outline: none;
+  box-shadow: none;
+}
+
+.dx-field input::placeholder {
+  color: #6e6975;
+  font-weight: 500;
+}
+
+.dx-field select {
+  cursor: pointer;
+  appearance: auto;
+}
+
+.dx button.dx-field-clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 50%;
+  background: #e8e4ec;
+  color: var(--brand-charcoal);
+}
+
+.dx button.dx-field-clear:hover {
+  background: var(--brand-royal-tint);
+  color: var(--brand-royal);
+}
+
+/* Category and availability chips */
+.dx-chips {
+  display: flex;
+  gap: 8px;
+  margin: 22px 0 0;
+  padding: 2px 2px 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.dx-chips::-webkit-scrollbar {
+  display: none;
+}
+
+.dx-chips-small {
+  margin-top: 10px;
+}
+
+.dx button.dx-chip {
+  flex-shrink: 0;
+  height: 38px;
+  padding: 0 16px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--brand-charcoal);
+  font-size: 13.5px;
+  font-weight: 700;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.dx button.dx-chip:hover {
+  background: #fff;
+  border-color: var(--brand-royal);
+  color: var(--brand-royal);
+  transform: translateY(-2px);
+}
+
+.dx button.dx-chip.is-on,
+.dx button.dx-chip.is-on:hover {
+  background: var(--brand-royal);
+  border-color: var(--brand-royal);
+  color: #fff;
+}
+
+.dx button.dx-chip:focus-visible {
+  outline: 2px solid var(--brand-royal);
+  outline-offset: 2px;
+}
+
+/* Active filters */
+.dx-active {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.dx-active-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-2);
+}
+
+.dx button.dx-active-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: var(--brand-royal-tint);
+  color: var(--brand-royal);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.dx button.dx-active-chip:hover {
+  background: var(--brand-royal);
+  color: #fff;
+}
+
+.dx button.dx-active-clear {
+  height: auto;
+  padding: 4px 6px;
+  background: none;
+  color: var(--brand-royal);
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.dx button.dx-active-clear:hover {
+  background: none;
+  color: var(--brand-royal);
+}
+
+/* ---------- Results ---------- */
+
+.dx .cards-grid,
+.dx-grid {
+  margin-top: 24px;
+}
+
+.dx-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 18px;
+  padding: 0;
+  list-style: none;
+}
+
+.dx-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  isolation: isolate;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(30, 29, 27, 0.04), 0 8px 24px rgba(30, 29, 27, 0.06);
+  transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.3s ease, border-color 0.3s ease;
+  animation: dx-card-in 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation-delay: calc(var(--dx-i, 0) * 55ms);
+}
+
+@keyframes dx-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+}
+
+.dx-card:hover {
+  transform: translateY(-6px);
+  border-color: var(--brand-royal);
+  box-shadow: 0 2px 4px rgba(30, 29, 27, 0.05), 0 22px 44px rgba(76, 1, 106, 0.16);
+}
+
+.dx-card:has(.dx-card-open:focus-visible) {
+  outline: 3px solid var(--brand-electric);
+  outline-offset: 3px;
+}
+
+.dx-card.is-sold {
+  opacity: 0.75;
+}
+
+/* Photo, or the first letter on a brand tile */
+.dx-card-media {
+  position: relative;
+  height: 168px;
+  overflow: hidden;
+  background: var(--brand-royal-tint);
+}
+
+.dx-card-media img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.dx-card:hover .dx-card-media img {
+  transform: scale(1.05);
+}
+
+.dx-card-initial {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  background:
+    radial-gradient(circle at 85% 10%, rgba(243, 254, 214, 0.12) 0 70px, transparent 71px),
+    radial-gradient(circle at 85% 10%, #5d0f80 0 110px, transparent 111px),
+    var(--brand-royal);
+  color: var(--brand-electric);
+  font-size: 64px;
+  font-weight: 900;
+  line-height: 1;
+  transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.dx-card:hover .dx-card-initial {
+  transform: scale(1.04);
+}
+
+.dx-card-photos {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: rgba(30, 29, 27, 0.72);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.dx button.dx-card-fav {
+  position: absolute;
+  z-index: 2;
+  top: 10px;
+  right: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.94);
+  color: var(--brand-charcoal);
+  box-shadow: 0 4px 12px rgba(30, 29, 27, 0.16);
+  transition: transform 0.25s cubic-bezier(0.3, 1.6, 0.5, 1), color 0.2s ease;
+}
+
+.dx button.dx-card-fav:hover {
+  background: #fff;
+  color: #e0245e;
+  transform: scale(1.1);
+}
+
+.dx button.dx-card-fav.is-on {
+  color: #e0245e;
+}
+
+.dx button.dx-card-fav.is-on svg {
+  fill: currentColor;
+}
+
+.dx-card-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  padding: 14px 16px 16px;
+}
+
+.dx-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.dx-card-cat {
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--brand-sage);
+  color: var(--brand-royal);
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.dx-card-tag {
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--brand-royal-tint);
+  color: var(--brand-royal);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.dx-card-tag.is-green {
+  background: #e7f8ee;
+  color: #13794a;
+}
+
+.dx-card-title {
+  margin: 0 0 6px;
+  font-size: 16.5px;
+  font-weight: 800;
+  line-height: 1.3;
+}
+
+/* The title's button stretches over the whole card; contact and save sit above it */
+.dx button.dx-card-open {
+  display: -webkit-box;
+  height: auto;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.dx button.dx-card-open:hover {
+  background: none;
+  color: inherit;
+}
+
+.dx button.dx-card-open:focus-visible {
+  outline: none;
+}
+
+.dx-card-open::after {
+  content: '';
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+}
+
+.dx-card-desc {
+  display: -webkit-box;
+  margin: 0 0 10px;
+  overflow: hidden;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--ink-2);
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.dx-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+  margin-top: auto;
+  padding-top: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.dx-card-price {
+  font-size: 17px;
+  font-weight: 900;
+  color: var(--brand-royal);
+}
+
+.dx-card-rating,
+.dx-card-area {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.dx-card-rating {
+  color: #9a5b00;
+}
+
+.dx-card-rating svg {
+  fill: #f5b301;
+  color: #f5b301;
+}
+
+.dx-card-reviews {
+  color: var(--ink-2);
+  font-weight: 500;
+}
+
+.dx-card-area svg {
+  color: var(--brand-royal);
+}
+
+.dx-card-by {
+  margin: 6px 0 0;
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+
+.dx-card-contact {
+  position: relative;
+  z-index: 2;
+  margin-top: 14px;
+}
+
+/* ---------- Empty states ---------- */
+
+.dx-empty {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) minmax(220px, 300px);
+  align-items: center;
+  gap: 24px 32px;
+  margin-top: 24px;
+  padding: 36px 40px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  background: linear-gradient(135deg, #fff 0%, var(--brand-sage) 150%);
+  box-shadow: 0 1px 2px rgba(30, 29, 27, 0.04), 0 8px 24px rgba(30, 29, 27, 0.06);
+  animation: dx-rise 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.dx-empty-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: start;
+  width: 72px;
+  height: 72px;
+  border-radius: 22px;
+  background: var(--brand-royal);
+  color: var(--brand-electric);
+  box-shadow: 0 14px 30px rgba(76, 1, 106, 0.22);
+}
+
+.dx-empty-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: var(--brand-royal);
+  color: var(--brand-electric);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.dx-empty-title {
+  margin: 0 0 8px;
+  font-size: clamp(1.25rem, 1.8vw, 1.6rem);
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.dx-empty-note {
+  max-width: 56ch;
+  margin: 0 0 18px;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--ink-2);
+}
+
+.dx-empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.dx-empty-perks {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 20px;
+  border-radius: 18px;
+  background: var(--brand-royal);
+  list-style: none;
+}
+
+.dx-empty-perks li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: #fff;
+}
+
+.dx-empty-perks svg {
+  flex-shrink: 0;
+  color: var(--brand-electric);
+}
+
+/* ---------- Smaller screens ---------- */
+
+@media (max-width: 1100px) {
+  .dx-empty {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+  .dx-empty-perks {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 10px 22px;
+  }
+}
+
+@media (max-width: 900px) {
+  .dx-head {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+  }
+  .dx-head-actions {
+    justify-content: flex-start;
+  }
+}
+
+/* Phones: compact header, the search on its own line with area and sort side by side beneath */
+@media (max-width: 767px) {
+  .dx-head {
+    gap: 16px;
+    padding: 24px 20px 50px;
+    border-radius: 22px;
+  }
+  .dx-head-art {
+    top: 18px;
+    right: 22px;
+  }
+  .dx-head-art svg {
+    width: 40px;
+    height: 40px;
+  }
+  .dx-head-promise {
+    font-size: 14.5px;
+  }
+  .dx-head-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+  .dx button.dx-btn {
+    width: 100%;
+    height: 44px;
+    font-size: 14px;
+  }
+  /* The second action becomes a simple link, so the header stays short */
+  .dx-head .dx button.dx-btn-ghost,
+  .dx .dx-head button.dx-btn-ghost {
+    width: auto;
+    height: auto;
+    justify-self: center;
+    padding: 4px 6px;
+    border: 0;
+    background: none;
+    color: var(--brand-sage);
+    text-decoration: underline;
+    text-underline-offset: 4px;
+    text-decoration-color: rgba(243, 254, 214, 0.4);
+  }
+  .dx-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin: -26px 10px 0;
+    padding: 8px;
+    border-radius: 18px;
+  }
+  .dx-field-search {
+    grid-column: 1 / -1;
+  }
+  /* Narrow sort box: the label needs the room more than the icon */
+  .dx-field-sort svg {
+    display: none;
+  }
+  .dx-field {
+    height: 48px;
+    padding: 0 12px;
+    border-radius: 13px;
+  }
+  .dx-field input,
+  .dx-field select {
+    font-size: 14.5px;
+  }
+  .dx-chips {
+    margin: 16px calc(-1 * var(--site-gutter)) 0;
+    padding: 2px var(--site-gutter) 6px;
+  }
+  .dx-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+    margin-top: 18px;
+  }
+  .dx-card-media {
+    height: 180px;
+  }
+  .dx-empty {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+    padding: 24px 20px;
+    border-radius: 22px;
+  }
+  .dx-empty-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 18px;
+  }
+  .dx-empty-actions {
+    display: grid;
+  }
+  .dx-empty-perks {
+    flex-direction: column;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dx-head,
+  .dx-head-art,
+  .dx-head-dot::after,
+  .dx-filters,
+  .dx-card,
+  .dx-empty {
+    animation: none !important;
+  }
+  .dx *,
+  .dx *::before,
+  .dx *::after {
+    transition: none !important;
+  }
+  .dx-card:hover,
+  .dx button.dx-btn:hover,
+  .dx button.dx-chip:hover {
+    transform: none;
+  }
+}
