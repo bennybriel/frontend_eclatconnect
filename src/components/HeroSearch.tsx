@@ -192,13 +192,14 @@ export const HeroSearch: React.FC<HeroSearchProps> = ({ areas, suggestions, onSe
     const tick = () => {
       const word = PLACEHOLDER_EXAMPLES[example];
       chars += deleting ? -1 : 1;
-      // trimEnd: mid-word ("a used ") would otherwise show a gap before the closing quote
-      setPlaceholder(`Try "${word.slice(0, Math.max(chars, 0)).trimEnd()}"`);
+      // At least one letter, so the box never shows empty quotes between words; trimEnd so a
+      // half-typed word ("a used ") never shows a gap before the closing quote
+      setPlaceholder(`Try "${word.slice(0, Math.max(chars, 1)).trimEnd()}"`);
       let wait = deleting ? 35 : 70;
       if (!deleting && chars >= word.length) {
         deleting = true;
         wait = 1500;
-      } else if (deleting && chars <= 0) {
+      } else if (deleting && chars <= 1) {
         deleting = false;
         example = (example + 1) % PLACEHOLDER_EXAMPLES.length;
         wait = 350;

@@ -294,18 +294,6 @@ export const HomeHero: React.FC<HomeHeroProps> = ({ areas, suggestions, stats = 
                   </div>
                 );
               })}
-              {/* The same cards again, for the sliding row on phones (hidden elsewhere, not focusable) */}
-              {ORBIT_CARDS.map(card => {
-                const Icon = card.icon;
-                return (
-                  <div key={`dup-${card.label}`} className="hh-orbit-slot hh-orbit-dup" aria-hidden="true">
-                    <span className={`hh-orbit-card hh-tone-${card.tone}`}>
-                      <span className="hh-orbit-icon"><Icon size={16} strokeWidth={2.4} /></span>
-                      {card.label}
-                    </span>
-                  </div>
-                );
-              })}
             </div>
           </div>
         </div>
