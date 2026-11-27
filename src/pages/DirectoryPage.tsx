@@ -3,15 +3,22 @@ import {
   ArrowRight,
   BadgeCheck,
   Camera,
+  Check,
+  ChevronDown,
+  Clock,
   Hammer,
   Heart,
+  LayoutGrid,
+  List,
   MapPin,
   Megaphone,
   MessageCircle,
   Recycle,
   Search,
   ShoppingBag,
+  Share2,
   SlidersHorizontal,
+  Sparkles,
   Star,
   Store,
   Tag,
@@ -23,8 +30,9 @@ import { Category, Location, AvailabilityStatus } from '../types';
 import { getCategoriesForType } from '../components/CategorySelect';
 import { DirectContactButtons } from '../components/DirectContactButtons';
 import { AvailabilityBadge } from '../components/AvailabilityBadge';
-import { DirectoryCardsSkeleton } from '../components/SkeletonLoader';
 import { TrustBadge } from '../components/TrustBadge';
+import { shareListing } from '../utils/share';
+import { clearRecent, readRecent } from '../utils/recent';
 import './DirectoryPage.css';
 
 interface DirectoryPageProps {
@@ -172,6 +180,14 @@ interface CardProps {
 }
 
 const DirectoryCard: React.FC<CardProps> = ({ item, index, isFavorite, onOpen, onToggleFavorite }) => {
+  const [shared, setShared] = useState(false);
+  const share = async () => {
+    const result = await shareListing(item);
+    if (result === 'copied') {
+      setShared(true);
+      window.setTimeout(() => setShared(false), 1800);
+    }
+  };
   const name: string = item.name || item.title || 'Listing';
   const image: string | null = item.image_url || (item.images ? String(item.images).split(',')[0].trim() : null);
   const photoCount = item.images ? String(item.images).split(',').filter(Boolean).length : image ? 1 : 0;
@@ -199,6 +215,15 @@ const DirectoryCard: React.FC<CardProps> = ({ item, index, isFavorite, onOpen, o
             <Camera size={13} aria-hidden="true" /> {photoCount}
           </span>
         )}
+        <button
+          type="button"
+          className={`dx-card-share${shared ? ' is-done' : ''}`}
+          onClick={share}
+          aria-label={shared ? 'Link copied' : `Share ${name}`}
+          title={shared ? 'Link copied' : 'Share'}
+        >
+          {shared ? <Check size={16} strokeWidth={2.6} aria-hidden="true" /> : <Share2 size={16} strokeWidth={2.2} aria-hidden="true" />}
+        </button>
         {onToggleFavorite && (
           <button
             type="button"
@@ -296,6 +321,39 @@ export const DirectoryPage: React.FC<DirectoryPageProps> = ({
   const [availabilityFilter, setAvailabilityFilter] = useState<'ALL' | AvailabilityStatus>('ALL');
   const [sort, setSort] = useState<SortKey>('recommended');
 
+  // Grid or list, remembered on this device
+  const [view, setView] = useState<'grid' | 'list'>(() => {
+    try {
+      return window.localStorage.getItem('eclat_dx_view') === 'list' ? 'list' : 'grid';
+    } catch {
+      return 'grid';
+    }
+  });
+  const chooseView = (next: 'grid' | 'list') => {
+    setView(next);
+    try {
+      window.localStorage.setItem('eclat_dx_view', next);
+    } catch {
+      // ignore: the choice just won't be remembered
+    }
+  };
+
+  // Recently viewed listings (any section), kept on this device
+  const [recent, setRecent] = useState<any[]>(() => readRecent());
+  useEffect(() => {
+    const refresh = () => setRecent(readRecent());
+    window.addEventListener('eclat-recent-change', refresh);
+    window.addEventListener('storage', refresh);
+    return () => {
+      window.removeEventListener('eclat-recent-change', refresh);
+      window.removeEventListener('storage', refresh);
+    };
+  }, []);
+
+  // Long lists show 12 at a time, so cheap phones stay quick
+  const PAGE_SIZE = 12;
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+
   const relevantCategories = getCategoriesForType(categories, config.listingType);
 
   // One entry per area name (the location list can contain the same area twice)
@@ -331,6 +389,15 @@ export const DirectoryPage: React.FC<DirectoryPageProps> = ({
     else sorted.sort((a, b) => Number(isVerified(b)) - Number(isVerified(a)) || ratingOf(b) - ratingOf(a) || dateOf(b) - dateOf(a));
     return sorted;
   }, [items, isPreownedPage, availabilityFilter, sort]);
+
+  useEffect(() => setVisibleCount(PAGE_SIZE), [items, sort, availabilityFilter]);
+  const shownItems = displayedItems.slice(0, visibleCount);
+
+  // Spotlight: verified or well-rated providers, when the visitor is browsing without filters
+  const spotlight = useMemo(
+    () => displayedItems.filter(it => isVerified(it) || ratingOf(it) >= 4).slice(0, 8),
+    [displayedItems]
+  );
 
   const areaName = areas.find(a => a.id === locationFilter)?.area || locations.find(l => l.id === locationFilter)?.area;
   const categoryName = relevantCategories.find(c => c.id === categoryFilter)?.name || categories.find(c => c.id === categoryFilter)?.name;
@@ -418,6 +485,24 @@ export const DirectoryPage: React.FC<DirectoryPageProps> = ({
         </label>
       </div>
 
+      {/* Areas as quick chips, since students think in areas */}
+      {areas.length > 1 && (
+        <div className="dx-chips dx-chips-areas" role="group" aria-label="Areas">
+          <span className="dx-chips-label"><MapPin size={15} aria-hidden="true" /> Near</span>
+          {areas.map(loc => (
+            <button
+              key={loc.id}
+              type="button"
+              className={`dx-chip dx-chip-area${locationFilter === loc.id ? ' is-on' : ''}`}
+              aria-pressed={locationFilter === loc.id}
+              onClick={() => onLocationChange(locationFilter === loc.id ? '' : loc.id)}
+            >
+              {loc.area}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Categories as chips you can tap; they scroll sideways when there are many */}
       {relevantCategories.length > 0 && (
         <div className="dx-chips" role="group" aria-label="Categories">
@@ -487,12 +572,92 @@ export const DirectoryPage: React.FC<DirectoryPageProps> = ({
       )}
 
       {/* Loading */}
-      {loading && <DirectoryCardsSkeleton count={6} />}
+      {loading && (
+        <ul className="dx-grid dx-skeletons" aria-label="Loading">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <li key={i} className="dx-skeleton" style={{ '--dx-i': i } as React.CSSProperties}>
+              <span className="dx-skel-media" />
+              <span className="dx-skel-line is-short" />
+              <span className="dx-skel-line" />
+              <span className="dx-skel-line is-mid" />
+              <span className="dx-skel-btn" />
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {/* Recently viewed, on this device */}
+      {!loading && !hasFilters && recent.length > 0 && (
+        <section className="dx-strip" aria-labelledby="dx-recent-title">
+          <div className="dx-strip-head">
+            <h2 id="dx-recent-title"><Clock size={18} aria-hidden="true" /> Recently viewed</h2>
+            <button type="button" className="dx-strip-clear" onClick={clearRecent}>Clear</button>
+          </div>
+          <ul className="dx-recent">
+            {recent.slice(0, 8).map(r => {
+              const rName = r.name || r.title || 'Listing';
+              const rImg = r.image_url || (r.images ? String(r.images).split(',')[0].trim() : null);
+              return (
+                <li key={r.id}>
+                  <button type="button" className="dx-recent-item" onClick={() => onSelectItem(r)}>
+                    <span className="dx-recent-media">
+                      {rImg ? <img src={rImg} alt="" loading="lazy" /> : rName.trim().charAt(0).toUpperCase()}
+                    </span>
+                    <span className="dx-recent-text">
+                      <span className="dx-recent-name">{rName}</span>
+                      <span className="dx-recent-meta">{r.location_area || r.location || r.category_name || ''}</span>
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
+
+      {/* Spotlight: verified and top-rated providers */}
+      {!loading && !hasFilters && spotlight.length >= 2 && count > spotlight.length && (
+        <section className="dx-strip dx-spotlight" aria-labelledby="dx-spot-title">
+          <div className="dx-strip-head">
+            <h2 id="dx-spot-title"><Sparkles size={18} aria-hidden="true" /> Verified &amp; top rated</h2>
+          </div>
+          <ul className="dx-spot-row">
+            {spotlight.map((item, i) => (
+              <DirectoryCard
+                key={`spot-${item.id ?? i}`}
+                item={item}
+                index={i}
+                isFavorite={!!favorites[item.id]}
+                onOpen={onSelectItem}
+                onToggleFavorite={onToggleFavorite}
+              />
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {/* Toolbar: how many, and grid or list */}
+      {!loading && count > 0 && (
+        <div className="dx-toolbar">
+          <p className="dx-toolbar-count">
+            {hasFilters ? `${countText} found` : `All ${config.unit[1]}`}
+            <span> · {SORTS.find(s => s.key === sort)?.label}</span>
+          </p>
+          <div className="dx-view" role="group" aria-label="View">
+            <button type="button" className={view === 'grid' ? 'is-on' : ''} aria-pressed={view === 'grid'} onClick={() => chooseView('grid')} title="Grid">
+              <LayoutGrid size={17} aria-hidden="true" /><span className="dx-visually-hidden">Grid view</span>
+            </button>
+            <button type="button" className={view === 'list' ? 'is-on' : ''} aria-pressed={view === 'list'} onClick={() => chooseView('list')} title="List">
+              <List size={17} aria-hidden="true" /><span className="dx-visually-hidden">List view</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Results */}
       {!loading && count > 0 && (
-        <ul className="dx-grid">
-          {displayedItems.map((item, i) => (
+        <ul className={`dx-grid${view === 'list' ? ' is-list' : ''}`}>
+          {shownItems.map((item, i) => (
             <DirectoryCard
               key={item.id ?? i}
               item={item}
@@ -503,6 +668,15 @@ export const DirectoryPage: React.FC<DirectoryPageProps> = ({
             />
           ))}
         </ul>
+      )}
+
+      {!loading && count > shownItems.length && (
+        <div className="dx-more">
+          <p>Showing {shownItems.length} of {count}</p>
+          <button type="button" className="dx-btn dx-btn-outline" onClick={() => setVisibleCount(c => c + PAGE_SIZE)}>
+            Show more <ChevronDown size={17} aria-hidden="true" />
+          </button>
+        </div>
       )}
 
       {/* Empty: nothing matches the filters, or nothing listed yet */}

@@ -585,12 +585,12 @@ main.main-content {
 }
 
 .btn-whatsapp {
-  background-color: #25d366;
+  background-color: #0f7a43;
   color: var(--white);
 }
 
 .btn-whatsapp:hover {
-  background-color: #1eb956;
+  background-color: #0b6236;
 }
 
 /* Forms & Panels */

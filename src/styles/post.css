@@ -1,0 +1,455 @@
+/* =====================================================================
+   Post what I need: one clear page.
+   The header says what the page is for and lets people pick what they
+   are doing (service, product, used item, selling). Three numbered
+   parts follow, each made of taps more than typing, with a live preview
+   and the post button always beside them.
+   Builds on the shared classes in flows.css.
+   ===================================================================== */
+
+/* ---------- Header and "what are you doing" choices ---------- */
+
+.pw-head {
+  padding-bottom: 68px;
+}
+
+.pw-head .fl-head-title {
+  margin-bottom: 6px;
+}
+
+.pw-types {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  max-width: 900px;
+  margin-top: 22px;
+}
+
+.fl button.pw-type {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: auto;
+  padding: 12px 14px;
+  border: 1.5px solid rgba(243, 254, 214, 0.18);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  text-align: left;
+  transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+.fl button.pw-type:hover {
+  border-color: rgba(186, 248, 15, 0.6);
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  transform: translateY(-2px);
+}
+
+.fl button.pw-type.is-on,
+.fl button.pw-type.is-on:hover {
+  border-color: var(--brand-electric);
+  background: var(--brand-electric);
+  color: var(--brand-charcoal);
+  transform: none;
+}
+
+.pw-type-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: rgba(186, 248, 15, 0.14);
+  color: var(--brand-electric);
+}
+
+.fl button.pw-type.is-on .pw-type-icon {
+  background: var(--brand-royal);
+  color: var(--brand-electric);
+}
+
+.pw-type strong {
+  display: block;
+  font-size: 14.5px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.pw-type span span {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  opacity: 0.75;
+}
+
+/* ---------- Guest note ---------- */
+
+.fl-step.pw-guest {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px;
+  border-color: #f4e2b0;
+  background: #fffaf0;
+}
+
+.pw-guest > svg {
+  flex-shrink: 0;
+  color: #b77900;
+}
+
+.pw-guest p {
+  flex: 1;
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: #5c3d00;
+}
+
+.pw-guest strong {
+  display: block;
+  font-size: 14.5px;
+  color: var(--brand-charcoal);
+}
+
+.pw-guest .fl-btn,
+.pw-signin-photos .fl-btn {
+  min-height: 42px;
+  padding: 0 18px;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+/* ---------- Inputs ---------- */
+
+.pw-big {
+  min-height: 60px;
+}
+
+.pw-big input {
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.fl-input.is-bad {
+  border-color: #d92d20;
+  background: #fff;
+  box-shadow: 0 0 0 4px rgba(217, 45, 32, 0.08);
+}
+
+.pw-error {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 2px 0;
+  color: #b42318;
+  font-size: 13px;
+  font-weight: 700;
+  animation: pw-shake 0.4s ease;
+}
+
+@keyframes pw-shake {
+  20%,
+  60% {
+    transform: translateX(-4px);
+  }
+  40%,
+  80% {
+    transform: translateX(4px);
+  }
+}
+
+/* ---------- Chips: popular requests, categories, conditions, amounts ---------- */
+
+.pw-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.pw-chips-label {
+  margin-right: 2px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ink-2);
+}
+
+.fl button.pw-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 40px;
+  padding: 0 15px;
+  border: 1.5px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--brand-charcoal);
+  font-size: 14px;
+  font-weight: 700;
+  transition: border-color 0.2s ease, background-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.fl button.pw-chip.is-small {
+  height: 34px;
+  padding: 0 12px;
+  font-size: 13px;
+  background: #faf9fb;
+}
+
+.fl button.pw-chip:hover {
+  border-color: var(--brand-royal);
+  background: #fff;
+  color: var(--brand-royal);
+  transform: translateY(-1px);
+}
+
+.fl button.pw-chip.is-on,
+.fl button.pw-chip.is-on:hover {
+  border-color: var(--brand-royal);
+  background: var(--brand-royal);
+  color: #fff;
+}
+
+/* ---------- Area tiles ---------- */
+
+.pw-areas {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px;
+}
+
+.fl button.pw-area {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  height: auto;
+  padding: 11px 13px;
+  border: 1.5px solid var(--line);
+  border-radius: 16px;
+  background: #fff;
+  color: var(--brand-charcoal);
+  text-align: left;
+  transition: border-color 0.2s ease, background-color 0.2s ease, transform 0.2s ease;
+}
+
+.fl button.pw-area:hover {
+  border-color: var(--brand-royal);
+  background: #fff;
+  color: var(--brand-charcoal);
+  transform: translateY(-1px);
+}
+
+.fl button.pw-area.is-on,
+.fl button.pw-area.is-on:hover {
+  border-color: var(--brand-royal);
+  background: var(--brand-royal-tint);
+  box-shadow: inset 0 0 0 1px var(--brand-royal);
+}
+
+.pw-area strong {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14.5px;
+  font-weight: 800;
+}
+
+.pw-area strong svg {
+  color: var(--brand-royal);
+}
+
+.pw-area span {
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--ink-2);
+}
+
+/* ---------- Price box and quick amounts on one line ---------- */
+
+.pw-money {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.pw-money > .fl-input {
+  width: 190px;
+}
+
+/* ---------- Writing tips ---------- */
+
+.pw-tips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.fl button.pw-tip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 30px;
+  padding: 0 11px;
+  border-radius: 999px;
+  background: var(--brand-sage);
+  color: var(--brand-royal);
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.fl button.pw-tip:hover {
+  background: var(--brand-electric);
+  color: var(--brand-charcoal);
+}
+
+/* ---------- Photos for signed-out visitors ---------- */
+
+.pw-signin-photos {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  border: 1.5px dashed #d9d2e2;
+  border-radius: 18px;
+  background: #faf9fb;
+}
+
+.pw-signin-photos > svg {
+  flex-shrink: 0;
+  color: var(--brand-royal);
+}
+
+.pw-signin-photos p {
+  flex: 1;
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: var(--ink-2);
+}
+
+.pw-signin-photos strong {
+  display: block;
+  color: var(--brand-charcoal);
+}
+
+/* MultiImageUpload label inside the page */
+.pw .form-group > label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--brand-charcoal);
+}
+
+/* ---------- Progress in the post box ---------- */
+
+.pw-progress {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.pw-progress span {
+  height: 5px;
+  border-radius: 999px;
+  background: #ebe7ef;
+  transition: background-color 0.3s ease;
+}
+
+.pw-progress span.is-done {
+  background: #22a559;
+}
+
+/* ---------- Smaller screens ---------- */
+
+@media (max-width: 1080px) {
+  .pw-types {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    max-width: 560px;
+  }
+}
+
+/* One column: the preview, post box and "what happens next" join the form's
+   column, and the post box stays stuck to the bottom of the screen */
+@media (max-width: 900px) {
+  .pw .fl-aside {
+    display: contents;
+  }
+  .pw .fl-preview {
+    order: 1;
+  }
+  .pw .fl-how {
+    order: 2;
+  }
+  .pw .fl-submit-bar.pw-submit {
+    order: 3;
+    position: sticky;
+    bottom: 12px;
+    z-index: 5;
+    gap: 8px;
+    padding: 12px 14px;
+    box-shadow: 0 10px 30px rgba(30, 29, 27, 0.18);
+  }
+  .pw .fl-submit-note {
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 767px) {
+  .pw-head {
+    padding-bottom: 58px;
+  }
+  .pw-types {
+    gap: 8px;
+    margin-top: 16px;
+  }
+  .fl button.pw-type {
+    gap: 10px;
+    padding: 10px;
+    border-radius: 16px;
+  }
+  .pw-type-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+  }
+  .pw-type strong {
+    font-size: 13px;
+  }
+  .pw-type span span {
+    display: none;
+  }
+  .fl-step.pw-guest {
+    flex-wrap: wrap;
+  }
+  .pw-guest .fl-btn {
+    width: 100%;
+  }
+  .pw-areas {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .pw-money > .fl-input {
+    width: 100%;
+  }
+  .pw-signin-photos {
+    flex-wrap: wrap;
+  }
+  /* Sit just above the phone's bottom bar */
+  .pw .fl-submit-bar.pw-submit {
+    bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pw-error {
+    animation: none;
+  }
+}

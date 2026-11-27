@@ -76,8 +76,9 @@ const CountUp: React.FC<{ value: number }> = ({ value }) => {
     let frame = 0;
     const startedAt = performance.now();
     const duration = 900;
-    const tick = (now: number) => {
-      const t = Math.min(1, (now - startedAt) / duration);
+    // One clock for start and progress, never below zero (a frame's timestamp can be earlier than startedAt)
+    const tick = () => {
+      const t = Math.min(1, Math.max(0, (performance.now() - startedAt) / duration));
       setShown(Math.round(value * (1 - Math.pow(1 - t, 3))));
       if (t < 1) frame = requestAnimationFrame(tick);
     };

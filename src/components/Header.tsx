@@ -2,9 +2,11 @@ import React, { useEffect, useRef, useState } from 'react';
 import { handleLinkClick, pathFor } from '../routing';
 import {
   Bell,
+  FileText,
   ChevronDown,
   Hammer,
   House,
+  LifeBuoy,
   LogIn,
   LogOut,
   Megaphone,
@@ -15,6 +17,7 @@ import {
   ShieldCheck,
   ShoppingBag,
   Store,
+  Tag,
   UserRound,
   UserPlus,
   Wrench,
@@ -356,7 +359,7 @@ export const Header: React.FC<HeaderProps> = ({ currentPage, onNavigate, onSearc
                     <LogIn size={18} aria-hidden="true" /> Sign in
                   </button>
                   <button type="button" className="nv-btn nv-btn-ghost" onClick={() => go('Auth')}>
-                    <UserPlus size={18} aria-hidden="true" /> Create account
+                    <UserPlus size={18} aria-hidden="true" /> Join free
                   </button>
                 </div>
               )}
@@ -393,6 +396,38 @@ export const Header: React.FC<HeaderProps> = ({ currentPage, onNavigate, onSearc
                     </li>
                   );
                 })}
+              </ul>
+
+              {!isVendor && (
+                <>
+                  <p className="nv-drawer-label">Earn on ECLAT CONNECT</p>
+                  <ul className="nv-drawer-list">
+                    <li>
+                      <button type="button" className="nv-drawer-item" onClick={() => go('Provider Application')}>
+                        <Store size={20} aria-hidden="true" /> List your business or trade
+                      </button>
+                    </li>
+                    <li>
+                      <button type="button" className="nv-drawer-item" onClick={() => go('Sell Pre-owned Item')}>
+                        <Tag size={20} aria-hidden="true" /> Sell a used item
+                      </button>
+                    </li>
+                  </ul>
+                </>
+              )}
+
+              <p className="nv-drawer-label">Help</p>
+              <ul className="nv-drawer-list">
+                <li>
+                  <a className="nv-drawer-item" href="mailto:support@eclatconnect.com" onClick={() => setMenuOpen(false)}>
+                    <LifeBuoy size={20} aria-hidden="true" /> Contact support
+                  </a>
+                </li>
+                <li>
+                  <button type="button" className="nv-drawer-item" onClick={() => go('Privacy Policy')}>
+                    <FileText size={20} aria-hidden="true" /> Privacy &amp; terms
+                  </button>
+                </li>
               </ul>
 
               {isAuthenticated && (

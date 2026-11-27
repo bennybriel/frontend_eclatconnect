@@ -2,6 +2,9 @@ import React from 'react';
 import { NotificationItem } from '../types';
 import { request } from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import { ArrowRight, BadgeCheck, Bell, MessageSquareQuote, Star } from 'lucide-react';
+import { FlowBrand } from '../components/FlowBrand';
+import '../styles/flows.css';
 
 interface NotificationsPageProps {
   notifications: NotificationItem[];
@@ -76,17 +79,64 @@ export const NotificationsPage: React.FC<NotificationsPageProps> = ({
   };
 
   if (!user) {
+    const samples = [
+      { icon: <MessageSquareQuote size={18} />, title: 'New quote on your request', text: 'A provider replied with a price' },
+      { icon: <BadgeCheck size={18} />, title: 'Your profile was approved', text: 'You can now be found by customers' },
+      { icon: <Star size={18} />, title: 'You got a new review', text: 'See what a customer said' },
+    ];
     return (
-      <div style={{ maxWidth: 560, margin: '40px auto', textAlign: 'center', padding: '48px 24px', background: '#fff', borderRadius: 12, border: '1px solid var(--border)' }}>
-        <div style={{ fontSize: 40, marginBottom: 12 }}>🔔</div>
-        <h2 style={{ margin: '0 0 8px', color: 'var(--brand-purple)', fontSize: 20 }}>Sign in to see your notifications</h2>
-        <p style={{ color: 'var(--text-muted)', margin: '0 0 20px', fontSize: 14.5, lineHeight: 1.55 }}>
-          Quotes on your requests, profile updates and replies will appear here once you sign in.
-        </p>
-        <button className="btn-lime" onClick={() => onNavigate('Auth')}>
-          Sign in or create an account
-        </button>
-      </div>
+      <section className="fl" aria-labelledby="fl-notif-title">
+        <div className="fl-gate">
+          <FlowBrand
+            kicker="Stay in the loop"
+            title={
+              <>
+                Never miss a <span className="fl-script">reply.</span>
+              </>
+            }
+            photo={false}
+          >
+            <ul className="fl-samples" aria-label="Examples of notifications">
+              {samples.map((s, i) => (
+                <li key={s.title} className="fl-sample" style={{ '--fl-i': i } as React.CSSProperties}>
+                  <span className="fl-sample-icon" aria-hidden="true">{s.icon}</span>
+                  <div>
+                    <strong>{s.title}</strong>
+                    <span>{s.text}</span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </FlowBrand>
+
+          <div className="fl-main">
+            <div className="fl-main-inner">
+              <span className="fl-bell" aria-hidden="true">
+                <Bell size={34} />
+                <span className="fl-bell-dot" />
+              </span>
+              <h1 className="fl-title" id="fl-notif-title">Sign in to see your notifications</h1>
+              <p className="fl-sub">
+                Quotes on your requests, replies from providers and updates to your profile all show up here.
+              </p>
+              <div className="fl-actions">
+                <button type="button" className="fl-btn fl-btn-lime fl-btn-block" onClick={() => onNavigate('Auth')}>
+                  Sign in <ArrowRight size={18} />
+                </button>
+                <button type="button" className="fl-btn fl-btn-outline fl-btn-block" onClick={() => onNavigate('Auth')}>
+                  Create a free account
+                </button>
+              </div>
+              <p className="fl-legal">
+                Just looking?{' '}
+                <button type="button" className="fl-link" onClick={() => onNavigate('Home')}>
+                  Browse the marketplace
+                </button>
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
     );
   }
 
