@@ -16,6 +16,9 @@ interface PostRequestPageProps {
   currentPage?: string;
 }
 
+const DRAFT_KEY = 'eclat_post_draft';
+export const RETURN_TO_KEY = 'eclat_return_to';
+
 export const PostRequestPage: React.FC<PostRequestPageProps> = ({
   categories,
   locations,
@@ -26,7 +29,7 @@ export const PostRequestPage: React.FC<PostRequestPageProps> = ({
   initialLookingForPreowned = false,
   currentPage,
 }) => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
 
   // Resolve request type strictly based on current page / mode
   const resolveType = (): RequestKind => {
@@ -43,7 +46,7 @@ export const PostRequestPage: React.FC<PostRequestPageProps> = ({
   const [locationId, setLocationId] = useState('');
   const [generalArea, setGeneralArea] = useState('Under G');
   const [privateAddress, setPrivateAddress] = useState('');
-  const [shareAddressAgreed, setShareAddressAgreed] = useState(true);
+  const [shareAddressAgreed, setShareAddressAgreed] = useState(false);
   const [priceOrBudget, setPriceOrBudget] = useState('');
   const [condition, setCondition] = useState('Used - Good Condition');
   const [availabilityStatus, setAvailabilityStatus] = useState<AvailabilityStatus>('AVAILABLE');
@@ -54,6 +57,54 @@ export const PostRequestPage: React.FC<PostRequestPageProps> = ({
   useEffect(() => {
     setRequestType(resolveType());
   }, [currentPage, defaultMode, initialLookingForPreowned]);
+
+  // Restore a draft saved before the visitor was asked to sign in
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(DRAFT_KEY);
+      if (!raw) return;
+      const d = JSON.parse(raw);
+      if (d.page && currentPage && d.page !== currentPage) return;
+      setTitle(d.title || '');
+      setCategoryId(d.categoryId || '');
+      setCustomCategory(d.customCategory || '');
+      setLocationId(d.locationId || '');
+      if (d.generalArea) setGeneralArea(d.generalArea);
+      setPrivateAddress(d.privateAddress || '');
+      setShareAddressAgreed(Boolean(d.shareAddressAgreed));
+      setPriceOrBudget(d.priceOrBudget || '');
+      if (d.condition) setCondition(d.condition);
+      if (d.availabilityStatus) setAvailabilityStatus(d.availabilityStatus);
+      setImages(d.images || '');
+      setDescription(d.description || '');
+      if (isAuthenticated) sessionStorage.removeItem(DRAFT_KEY);
+    } catch {}
+  }, [currentPage, isAuthenticated]);
+
+  const saveDraftAndSignIn = () => {
+    try {
+      sessionStorage.setItem(
+        DRAFT_KEY,
+        JSON.stringify({
+          page: currentPage,
+          title,
+          categoryId,
+          customCategory,
+          locationId,
+          generalArea,
+          privateAddress,
+          shareAddressAgreed,
+          priceOrBudget,
+          condition,
+          availabilityStatus,
+          images,
+          description,
+        })
+      );
+      if (currentPage) sessionStorage.setItem(RETURN_TO_KEY, currentPage);
+    } catch {}
+    onNavigate('Auth');
+  };
 
   const isPreownedSale = requestType === 'PREOWNED_SALE';
   const isPreownedRequest = requestType === 'PREOWNED_REQUEST';
@@ -98,8 +149,8 @@ export const PostRequestPage: React.FC<PostRequestPageProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isAuthenticated) {
-      onToast('Please sign in to publish a post or sell an item', 'error');
-      onNavigate('Auth');
+      onToast('Your details are saved. Sign in or create an account to publish.', 'info');
+      saveDraftAndSignIn();
       return;
     }
 
@@ -143,9 +194,9 @@ export const PostRequestPage: React.FC<PostRequestPageProps> = ({
       } else if (isPreownedRequest) {
         onToast('Your request for a pre-owned item is published! Sellers in the area will reach out.', 'success');
       } else if (isProduct) {
-        onToast('Your product request has been published! Approved vendors and sellers will be notified.', 'success');
+        onToast('Your product request has been published. Sellers can now see it and send quotes.', 'success');
       } else {
-        onToast('Your request has been published! Approved providers will be notified.', 'success');
+        onToast('Your request has been published. Providers can now see it and send quotes.', 'success');
       }
       onSuccess();
     } catch (err: any) {
@@ -171,6 +222,28 @@ export const PostRequestPage: React.FC<PostRequestPageProps> = ({
           Cancel
         </button>
       </div>
+
+      {!isAuthenticated && (
+        <div style={{
+          background: '#fffbeb',
+          border: '1px solid #fde68a',
+          borderRadius: 8,
+          padding: '10px 14px',
+          marginBottom: 16,
+          fontSize: 13,
+          color: '#78350f',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: 8,
+        }}>
+          <span>You need an account to publish. Signing in first lets you add photos.</span>
+          <button type="button" className="btn-outline btn-sm" onClick={saveDraftAndSignIn}>
+            Sign in first
+          </button>
+        </div>
+      )}
 
       {/* Subtle contextual switch link */}
       {switchOffer && (
@@ -332,6 +405,14 @@ export const PostRequestPage: React.FC<PostRequestPageProps> = ({
           </small>
         </div>
 
+        {isPreownedSale && (
+          <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 12.5, color: '#334155', lineHeight: 1.5 }}>
+            📞 <strong>Buyers will see your phone number</strong> so they can call or WhatsApp you
+            {user?.phone ? <> (<strong>{user.phone}</strong>)</> : null}.
+            {isAuthenticated && !user?.phone && ' Your account has no phone number yet, so buyers may not be able to reach you.'}
+          </div>
+        )}
+
         {/* Customer Privacy Consent Guarantee */}
         <div style={{
           background: '#f8fafc',
@@ -364,7 +445,7 @@ export const PostRequestPage: React.FC<PostRequestPageProps> = ({
           }
           hint={
             isPreownedSale
-              ? 'Clear photos from different angles help sell your item 3x faster!'
+              ? 'Clear photos from different angles help buyers decide faster.'
               : 'Add photos so providers can see exactly what you need.'
           }
           maxImages={5}

@@ -1,6 +1,7 @@
 import React from 'react';
 import { cleanPhone, request } from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import { MessageCircle, Phone } from 'lucide-react';
 
 interface DirectContactButtonsProps {
   phone?: string;
@@ -8,6 +9,8 @@ interface DirectContactButtonsProps {
   listingTitle?: string;
   size?: 'sm' | 'md' | 'lg';
   fullWidth?: boolean;
+  /** "compact": a WhatsApp button plus an icon-only call button, for listing cards */
+  variant?: 'default' | 'compact';
 }
 
 export const DirectContactButtons: React.FC<DirectContactButtonsProps> = ({
@@ -16,6 +19,7 @@ export const DirectContactButtons: React.FC<DirectContactButtonsProps> = ({
   listingTitle,
   size = 'sm',
   fullWidth = false,
+  variant = 'default',
 }) => {
   const { user } = useAuth();
   const contactPhone = phone || whatsapp;
@@ -25,7 +29,9 @@ export const DirectContactButtons: React.FC<DirectContactButtonsProps> = ({
 
   const waNumber = cleanPhone(contactWa);
   const waMessage = encodeURIComponent(
-    'Hello, I found your business on ECLAT CONNECT. I would like to make an enquiry.'
+    listingTitle
+      ? `Hello, I saw "${listingTitle}" on ECLAT CONNECT and I would like to make an enquiry.`
+      : 'Hello, I found you on ECLAT CONNECT and I would like to make an enquiry.'
   );
 
   const handleTrackClick = (action: 'CALL' | 'CHAT_WHATSAPP') => {
@@ -39,6 +45,36 @@ export const DirectContactButtons: React.FC<DirectContactButtonsProps> = ({
       }).catch(() => {});
     } catch {}
   };
+
+  if (variant === 'compact') {
+    return (
+      <div className="contact-compact" onClick={e => e.stopPropagation()}>
+        {contactWa && (
+          <a
+            className="contact-compact-wa"
+            target="_blank"
+            rel="noopener noreferrer"
+            href={`https://wa.me/${waNumber}?text=${waMessage}`}
+            onClick={() => handleTrackClick('CHAT_WHATSAPP')}
+          >
+            <MessageCircle size={16} strokeWidth={2.2} aria-hidden="true" />
+            WhatsApp
+          </a>
+        )}
+        {contactPhone && (
+          <a
+            className="contact-compact-call"
+            href={`tel:${contactPhone}`}
+            aria-label={listingTitle ? `Call about ${listingTitle}` : 'Call'}
+            title="Call"
+            onClick={() => handleTrackClick('CALL')}
+          >
+            <Phone size={16} strokeWidth={2.2} aria-hidden="true" />
+          </a>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div

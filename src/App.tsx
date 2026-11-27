@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { Suspense, lazy, useState, useEffect, useRef } from 'react';
 import { useAuth } from './context/AuthContext';
 import { request } from './api/client';
 import { Category, Location, Provider, Listing, ServiceRequest, RequestResponse, NotificationItem, Favorite } from './types';
@@ -14,20 +14,9 @@ import { SignInPromptModal } from './components/SignInPromptModal';
 import { HomePage } from './pages/HomePage';
 import { DirectoryPage } from './pages/DirectoryPage';
 import { RequestsPage } from './pages/RequestsPage';
-import { PostRequestPage } from './pages/PostRequestPage';
-import { MyRequestsPage } from './pages/MyRequestsPage';
-import { ResponsesPage } from './pages/ResponsesPage';
-import { MyReviewsPage } from './pages/MyReviewsPage';
-import { FavouritesPage } from './pages/FavouritesPage';
-import { VendorWorkspacePage } from './pages/VendorWorkspacePage';
-import { ProviderApplicationPage } from './pages/ProviderApplicationPage';
-import { NewListingPage } from './pages/NewListingPage';
-import { NotificationsPage } from './pages/NotificationsPage';
-import { AccountPage } from './pages/AccountPage';
-import { AuthPage } from './pages/AuthPage';
-import { AdminDashboardPage } from './pages/admin/AdminDashboardPage';
-import { PrivacyPolicyPage } from './pages/legal/PrivacyPolicyPage';
-import { TermsOfServicePage } from './pages/legal/TermsOfServicePage';
+import { PostRequestPage, RETURN_TO_KEY } from './pages/PostRequestPage';
+import { NotFoundPage } from './pages/NotFoundPage';
+import { FILTER_PAGES, NOT_FOUND, buildUrl, filtersFrom, pageFor, pathFor, sectionPageFor, titleFor } from './routing';
 
 // Modals
 import { ListingDetailsModal } from './pages/ListingDetailsModal';
@@ -35,21 +24,26 @@ import { RespondModal } from './pages/RespondModal';
 import { ReportModal } from './pages/ReportModal';
 import { ReviewModal, ReviewTarget } from './pages/ReviewModal';
 
+// Pages most visitors never open on their first visit load on demand, so the first page arrives sooner
+const MyRequestsPage = lazy(() => import('./pages/MyRequestsPage').then(m => ({ default: m.MyRequestsPage })));
+const ResponsesPage = lazy(() => import('./pages/ResponsesPage').then(m => ({ default: m.ResponsesPage })));
+const MyReviewsPage = lazy(() => import('./pages/MyReviewsPage').then(m => ({ default: m.MyReviewsPage })));
+const FavouritesPage = lazy(() => import('./pages/FavouritesPage').then(m => ({ default: m.FavouritesPage })));
+const VendorWorkspacePage = lazy(() => import('./pages/VendorWorkspacePage').then(m => ({ default: m.VendorWorkspacePage })));
+const ProviderApplicationPage = lazy(() => import('./pages/ProviderApplicationPage').then(m => ({ default: m.ProviderApplicationPage })));
+const NewListingPage = lazy(() => import('./pages/NewListingPage').then(m => ({ default: m.NewListingPage })));
+const NotificationsPage = lazy(() => import('./pages/NotificationsPage').then(m => ({ default: m.NotificationsPage })));
+const AccountPage = lazy(() => import('./pages/AccountPage').then(m => ({ default: m.AccountPage })));
+const AuthPage = lazy(() => import('./pages/AuthPage').then(m => ({ default: m.AuthPage })));
+const AdminDashboardPage = lazy(() => import('./pages/admin/AdminDashboardPage').then(m => ({ default: m.AdminDashboardPage })));
+const PrivacyPolicyPage = lazy(() => import('./pages/legal/PrivacyPolicyPage').then(m => ({ default: m.PrivacyPolicyPage })));
+const TermsOfServicePage = lazy(() => import('./pages/legal/TermsOfServicePage').then(m => ({ default: m.TermsOfServicePage })));
+
 export const App: React.FC = () => {
   const { user, isAuthenticated, isAdmin } = useAuth();
 
-  // Initial page based on current URL path
-  const getInitialPage = (): string => {
-    if (typeof window !== 'undefined') {
-      const p = window.location.pathname.toLowerCase();
-      if (p.includes('privacy')) return 'Privacy Policy';
-      if (p.includes('terms')) return 'Terms of Service';
-    }
-    return 'Home';
-  };
-
-  // Navigation state
-  const [page, setPage] = useState<string>(getInitialPage);
+  // The page comes from the address bar (see routing.ts), so links, refresh and Back all work
+  const [page, setPage] = useState<string>(() => pageFor(window.location.pathname));
 
   // Global taxonomy & data
   const [categories, setCategories] = useState<Category[]>([]);
@@ -79,9 +73,11 @@ export const App: React.FC = () => {
   const [adminReports, setAdminReports] = useState<any[]>([]);
 
   // Search and filter state
-  const [q, setQ] = useState('');
-  const [locationFilter, setLocationFilter] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('');
+  // Search filters start from the address too, e.g. /artisans?q=tailor&area=...&category=...
+  const initialFilters = filtersFrom(FILTER_PAGES.includes(pageFor(window.location.pathname)) ? window.location.search : '');
+  const [q, setQ] = useState(initialFilters.q);
+  const [locationFilter, setLocationFilter] = useState(initialFilters.area);
+  const [categoryFilter, setCategoryFilter] = useState(initialFilters.category);
 
   // Modals state
   const [selectedItem, setSelectedItem] = useState<any | null>(null);
@@ -207,6 +203,11 @@ export const App: React.FC = () => {
 
   // Load catalog items based on current page
   const loadCatalogData = async (override?: { q?: string; location_id?: string; category_id?: string }) => {
+    // Personal pages need a signed-in user; they show their own sign-in prompt otherwise
+    const personalPages = ['My Requests', 'Responses', 'Notifications', 'Vendor Workspace', 'Vendor Dashboard'];
+    if (!isAuthenticated && personalPages.includes(page)) {
+      return;
+    }
     setLoadingCatalog(true);
     try {
       const activeQ = override?.q !== undefined ? override.q : q;
@@ -300,54 +301,135 @@ export const App: React.FC = () => {
     loadCatalogData();
   }, [page, locationFilter, categoryFilter]);
 
-  // Handle direct URLs (e.g. /privacy-policy, /terms-of-service, or ?activate=TOKEN)
+  // Account activation links (?activate=TOKEN) open the sign-in page once the account is active
   useEffect(() => {
-    const path = window.location.pathname.toLowerCase();
-    if (path === '/privacy-policy' || path === '/privacy' || path === '/privacy-policy.html') {
-      setPage('Privacy Policy');
-    } else if (path === '/terms-of-service' || path === '/terms' || path === '/terms-of-service.html') {
-      setPage('Terms of Service');
-    }
-
     const params = new URLSearchParams(window.location.search);
     const activateToken = params.get('activate');
-    if (activateToken) {
-      request<{ message: string }>('/auth/activate', 'POST', { token: activateToken })
-        .then(res => {
-          showToast(res.message || 'Vendor account activated successfully! You may now sign in.', 'success');
-          setPage('Auth');
-          window.history.replaceState({}, document.title, window.location.pathname);
-        })
-        .catch(err => {
-          showToast(err.message, 'error');
-          setPage('Auth');
-        });
-    }
+    if (!activateToken) return;
+    request<{ message: string }>('/auth/activate', 'POST', { token: activateToken })
+      .then(res => {
+        showToast(res.message || 'Vendor account activated successfully! You may now sign in.', 'success');
+        handleNavigate('Auth', { replace: true });
+      })
+      .catch(err => {
+        showToast(err.message, 'error');
+        handleNavigate('Auth', { replace: true });
+      });
+    // Runs once, on the first load
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
+  // Back and Forward: show the page, filters and open listing that the address describes
+  useEffect(() => {
     const handlePopState = () => {
-      const p = window.location.pathname.toLowerCase();
-      if (p === '/privacy-policy' || p === '/privacy' || p === '/privacy-policy.html') {
-        setPage('Privacy Policy');
-      } else if (p === '/terms-of-service' || p === '/terms' || p === '/terms-of-service.html') {
-        setPage('Terms of Service');
-      } else if (p === '/' || p === '') {
-        setPage('Home');
+      const nextPage = pageFor(window.location.pathname);
+      setPage(nextPage);
+      if (FILTER_PAGES.includes(nextPage)) {
+        const f = filtersFrom(window.location.search);
+        setQ(f.q);
+        setLocationFilter(f.area);
+        setCategoryFilter(f.category);
       }
+      const openId = new URLSearchParams(window.location.search).get('open');
+      if (openId) pendingOpenId.current = openId;
+      else setSelectedItem(null);
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  const handleNavigate = (targetPage: string) => {
-    setPage(targetPage);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+  // Older or alternative addresses (/privacy, /login, /professionals...) switch to the official one,
+  // so every page has exactly one address
+  useEffect(() => {
+    if (page === NOT_FOUND) return;
+    const official = pathFor(page);
+    if (window.location.pathname !== official) {
+      window.history.replaceState(window.history.state, '', official + window.location.search);
+    }
+    // Only for the address the visitor arrived on
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-    if (targetPage === 'Privacy Policy') {
-      window.history.pushState(null, '', '/privacy-policy');
-    } else if (targetPage === 'Terms of Service') {
-      window.history.pushState(null, '', '/terms-of-service');
-    } else if (targetPage === 'Home') {
-      window.history.pushState(null, '', '/');
+  // The browser tab names the page, e.g. "Artisans · ECLAT CONNECT"
+  useEffect(() => {
+    document.title = titleFor(page);
+  }, [page]);
+
+  // Keep the address in step with the search filters, without adding history entries per keystroke
+  useEffect(() => {
+    if (!FILTER_PAGES.includes(page)) return;
+    const open = new URLSearchParams(window.location.search).get('open') || undefined;
+    const url = buildUrl(pathFor(page), { q: q.trim() || undefined, area: locationFilter, category: categoryFilter, open });
+    if (url !== window.location.pathname + window.location.search) {
+      window.history.replaceState(window.history.state, '', url);
+    }
+  }, [page, q, locationFilter, categoryFilter]);
+
+  // Listing links: /businesses?open=<id> opens that listing once the section has loaded
+  const pendingOpenId = useRef<string | null>(new URLSearchParams(window.location.search).get('open'));
+  useEffect(() => {
+    const id = pendingOpenId.current;
+    if (!id || loadingCatalog || items.length === 0) return;
+    const found = items.find(it => String(it.id) === id);
+    if (found) setSelectedItem(found);
+    pendingOpenId.current = null;
+  }, [items, loadingCatalog]);
+
+  /** Opens a listing and gives it its own address, so it can be shared and Back closes it */
+  const openItem = (item: any) => {
+    setSelectedItem(item);
+    if (!item?.id) return;
+    const section = sectionPageFor(item);
+    const keepFilters = pathFor(section) === pathFor(page);
+    const url = buildUrl(pathFor(section), {
+      q: keepFilters ? q.trim() || undefined : undefined,
+      area: keepFilters ? locationFilter : undefined,
+      category: keepFilters ? categoryFilter : undefined,
+      open: String(item.id),
+    });
+    window.history.pushState({ eclatModal: true }, '', url);
+  };
+
+  /** Closes the listing: steps back if opening it added a history entry, otherwise tidies the address */
+  const closeItem = () => {
+    if (window.history.state?.eclatModal) {
+      window.history.back();
+      return;
+    }
+    setSelectedItem(null);
+    const params = new URLSearchParams(window.location.search);
+    if (params.has('open')) {
+      params.delete('open');
+      const qs = params.toString();
+      window.history.replaceState(window.history.state, '', qs ? `${window.location.pathname}?${qs}` : window.location.pathname);
+    }
+  };
+
+  /** Shows a page and puts its address in the address bar (see routing.ts) */
+  const handleNavigate = (targetPage: string, options: { replace?: boolean } = {}) => {
+    setSelectedItem(null);
+    setPage(targetPage);
+    const url = pathFor(targetPage);
+    if (url !== window.location.pathname + window.location.search) {
+      if (options.replace) window.history.replaceState(null, '', url);
+      else window.history.pushState(null, '', url);
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Header search: search the section the visitor is browsing, otherwise Products.
+  // Clears category and area filters so a new keyword search starts fresh.
+  const handleHeaderSearch = (searchQ: string) => {
+    const searchableSections = ['Businesses', 'Products', 'Professionals', 'Artisans', 'Services', 'Pre-owned', 'Requests'];
+    const target = searchableSections.includes(page) ? page : 'Products';
+    setQ(searchQ);
+    setCategoryFilter('');
+    setLocationFilter('');
+    if (target === page) {
+      // Same page: filters may not change, so load the results directly
+      loadCatalogData({ q: searchQ, category_id: '', location_id: '' });
+    } else {
+      handleNavigate(target);
     }
   };
 
@@ -356,11 +438,21 @@ export const App: React.FC = () => {
       <Header
         currentPage={page}
         onNavigate={handleNavigate}
+        onSearch={handleHeaderSearch}
         unreadCount={unreadCount}
       />
 
       <main className="main-content">
         <Toast notice={notice} onClose={() => setNotice(null)} />
+
+        <Suspense
+          fallback={
+            <div className="page-loading" role="status">
+              <span className="page-loading-spinner" aria-hidden="true" />
+              Loading…
+            </div>
+          }
+        >
 
         {/* 1. Home Module */}
         {page === 'Home' && (
@@ -371,11 +463,12 @@ export const App: React.FC = () => {
             onSelectCategory={catId => setCategoryFilter(catId)}
             onNavigate={handleNavigate}
             onSearch={(searchQ, catId, locId) => {
-              if (searchQ) setQ(searchQ);
-              if (catId) setCategoryFilter(catId);
-              if (locId) setLocationFilter(locId);
+              // A homepage search replaces any earlier filters, so old ones never linger
+              setQ(searchQ || '');
+              setCategoryFilter(catId || '');
+              setLocationFilter(locId || '');
             }}
-            onSelectItem={setSelectedItem}
+            onSelectItem={openItem}
             favorites={favoritesMap}
             onToggleFavorite={handleToggleFavorite}
           />
@@ -396,7 +489,7 @@ export const App: React.FC = () => {
             onCategoryChange={setCategoryFilter}
             onFilterSubmit={loadCatalogData}
             onResetFilters={handleResetFilters}
-            onSelectItem={setSelectedItem}
+            onSelectItem={openItem}
             onNavigate={handleNavigate}
             favorites={favoritesMap}
             onToggleFavorite={handleToggleFavorite}
@@ -483,7 +576,7 @@ export const App: React.FC = () => {
           <FavouritesPage
             favorites={favoritesList}
             onRemoveFavorite={handleRemoveFavorite}
-            onSelectItem={setSelectedItem}
+            onSelectItem={openItem}
             onNavigate={handleNavigate}
             onToast={showToast}
           />
@@ -563,9 +656,22 @@ export const App: React.FC = () => {
         {/* 12. Authentication & Onboarding */}
         {page === 'Auth' && (
           <AuthPage
-            onSuccess={() => {
+            onSuccess={signedInUser => {
               refreshUserData();
-              handleNavigate('Home');
+              // Return visitors to what they were doing before signing in
+              let target = 'Home';
+              try {
+                const returnTo = sessionStorage.getItem(RETURN_TO_KEY);
+                if (returnTo) {
+                  target = returnTo;
+                  sessionStorage.removeItem(RETURN_TO_KEY);
+                }
+              } catch {}
+              // Vendors and artisans go to their workspace, which guides them through setup
+              if (target === 'Home' && signedInUser && ['VENDOR', 'ARTISAN'].includes(signedInUser.role)) {
+                target = 'Vendor Workspace';
+              }
+              handleNavigate(target);
             }}
             onToast={showToast}
           />
@@ -597,6 +703,8 @@ export const App: React.FC = () => {
         {page === 'Terms of Service' && (
           <TermsOfServicePage onNavigate={handleNavigate} />
         )}
+        {page === NOT_FOUND && <NotFoundPage onNavigate={handleNavigate} />}
+        </Suspense>
       </main>
 
       {/* Reusable Modals */}
@@ -605,9 +713,9 @@ export const App: React.FC = () => {
           item={selectedItem}
           isFavorite={selectedItem ? Boolean(favoritesMap[selectedItem.id] || favoritesMap[selectedItem.item_id]) : false}
           onToggleFavorite={handleToggleFavorite}
-          onClose={() => setSelectedItem(null)}
+          onClose={closeItem}
           onReport={item => {
-            setSelectedItem(null);
+            closeItem();
             setReportingItem(item);
           }}
           onToast={showToast}
@@ -645,6 +753,10 @@ export const App: React.FC = () => {
         <ReportModal
           item={reportingItem}
           onClose={() => setReportingItem(null)}
+          onSignIn={() => {
+            setReportingItem(null);
+            handleNavigate('Auth');
+          }}
           onToast={showToast}
         />
       )}

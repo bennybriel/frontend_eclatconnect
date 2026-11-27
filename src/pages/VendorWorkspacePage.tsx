@@ -24,7 +24,7 @@ interface VendorWorkspacePageProps {
 export const VendorWorkspacePage: React.FC<VendorWorkspacePageProps> = ({
   myProviders,
   myListings,
-  openRequests,
+  openRequests: allOpenRequests,
   categories,
   locations,
   unreadCount = 0,
@@ -51,6 +51,33 @@ export const VendorWorkspacePage: React.FC<VendorWorkspacePageProps> = ({
   const primaryProvider = myProviders[0] || null;
   const isArtisan = primaryProvider?.type === 'PROFESSIONAL';
   const isApproved = primaryProvider?.status === 'APPROVED' && primaryProvider?.active !== false;
+
+  // Plain-language explanation of where the provider's application stands
+  const providerStatus = primaryProvider?.status;
+  const statusNotice =
+    providerStatus === 'MORE_INFO'
+      ? {
+          title: 'More information needed',
+          badge: 'Action needed',
+          text: 'The ECLAT CONNECT team needs a little more information before approving your profile. Check your notifications for details, then update your profile.',
+        }
+      : providerStatus === 'REJECTED'
+      ? {
+          title: 'Application not approved',
+          badge: 'Not approved',
+          text: 'Your profile was not approved. Check your notifications for the reason. You can update your profile or contact support@eclatconnect.com.',
+        }
+      : providerStatus === 'SUSPENDED' || primaryProvider?.active === false
+      ? {
+          title: 'Profile paused',
+          badge: 'Paused',
+          text: 'Your profile is currently not visible to customers. Please contact support@eclatconnect.com for help.',
+        }
+      : {
+          title: 'Your profile is being reviewed',
+          badge: 'Under review',
+          text: 'The ECLAT CONNECT team is reviewing your profile. Once it is approved you can add products, services and past work, and customers will be able to find you.',
+        };
 
   // New Item Upload Form State
   const [itemKind, setItemKind] = useState<ListingKind>('PRODUCT');
@@ -157,7 +184,7 @@ export const VendorWorkspacePage: React.FC<VendorWorkspacePageProps> = ({
   // Open Edit Modal
   const handleOpenEdit = (item: Listing) => {
     if (!isApproved) {
-      onToast('Waiting for final approval by the administrator before you can update items, services, or projects.', 'error');
+      onToast('Your profile needs to be approved before you can update items, services, or projects.', 'error');
       return;
     }
     setEditingListing(item);
@@ -191,7 +218,7 @@ export const VendorWorkspacePage: React.FC<VendorWorkspacePageProps> = ({
   const handleUploadSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isApproved) {
-      onToast('Waiting for final approval by the administrator before you can upload or add items, services, or projects.', 'error');
+      onToast('Your profile needs to be approved before you can upload or add items, services, or projects.', 'error');
       return;
     }
     if (!primaryProvider) {
@@ -244,7 +271,7 @@ export const VendorWorkspacePage: React.FC<VendorWorkspacePageProps> = ({
   const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isApproved) {
-      onToast('Waiting for final approval by the administrator before you can update items, services, or projects.', 'error');
+      onToast('Your profile needs to be approved before you can update items, services, or projects.', 'error');
       return;
     }
     if (!editingListing) return;
@@ -291,7 +318,7 @@ export const VendorWorkspacePage: React.FC<VendorWorkspacePageProps> = ({
   // Toggle Item Visibility (Active <-> Hidden)
   const handleToggleStatus = async (item: Listing) => {
     if (!isApproved) {
-      onToast('Waiting for final approval by the administrator before you can update items.', 'error');
+      onToast('Your profile needs to be approved before you can update items.', 'error');
       return;
     }
     const newStatus = item.status === 'ACTIVE' ? 'HIDDEN' : 'ACTIVE';
@@ -307,7 +334,7 @@ export const VendorWorkspacePage: React.FC<VendorWorkspacePageProps> = ({
   // Delete Item
   const handleConfirmDelete = async () => {
     if (!isApproved) {
-      onToast('Waiting for final approval by the administrator before you can remove items.', 'error');
+      onToast('Your profile needs to be approved before you can remove items.', 'error');
       return;
     }
     if (!itemToDelete) return;
@@ -358,6 +385,53 @@ export const VendorWorkspacePage: React.FC<VendorWorkspacePageProps> = ({
     }
   };
 
+  // Leads: open requests from other people, excluding pre-owned items for sale.
+  // Requests in the provider's own category are listed first and marked.
+  const [onlyMatchingLeads, setOnlyMatchingLeads] = useState(false);
+  const providerCategoryName = (primaryProvider?.category_name || primaryProvider?.category || primaryProvider?.custom_category || '')
+    .trim()
+    .toLowerCase();
+  const isMatchingLead = (r: ServiceRequest): boolean =>
+    Boolean(
+      (primaryProvider?.category_id && r.category_id === primaryProvider.category_id) ||
+        (providerCategoryName &&
+          [r.category_name, r.category, r.custom_category].some(n => (n || '').trim().toLowerCase() === providerCategoryName))
+    );
+  const leadPool = allOpenRequests
+    .filter(r => r.request_type !== 'PREOWNED_SALE' && (!r.status || r.status === 'OPEN') && r.customer_id !== user?.id)
+    .sort((a, b) => Number(isMatchingLead(b)) - Number(isMatchingLead(a)));
+  const matchingLeadCount = leadPool.filter(isMatchingLead).length;
+  const openRequests = onlyMatchingLeads ? leadPool.filter(isMatchingLead) : leadPool;
+
+  // A vendor or artisan who has not yet created a provider profile
+  if (!primaryProvider) {
+    return (
+      <section className="form-panel" style={{ maxWidth: 640, margin: '32px auto', padding: '36px 28px' }}>
+        <EclatLogo size={36} />
+        <h1 style={{ margin: '18px 0 8px', fontSize: 24, color: 'var(--brand-purple)' }}>
+          Set up your {user?.role === 'ARTISAN' ? 'artisan' : 'business'} profile
+        </h1>
+        <p style={{ color: 'var(--text-muted)', fontSize: 14.5, lineHeight: 1.6, margin: '0 0 20px' }}>
+          Before customers can find you, tell us about your {user?.role === 'ARTISAN' ? 'trade' : 'business'}: what you offer,
+          where you are, and how customers can reach you. It takes about five minutes.
+        </p>
+        <ol style={{ margin: '0 0 24px', paddingLeft: 20, fontSize: 14, lineHeight: 1.7, color: 'var(--charcoal)' }}>
+          <li>Fill in your profile and add a photo of your shop or work.</li>
+          <li>The ECLAT CONNECT team reviews it.</li>
+          <li>Once approved, add your products, services and past work.</li>
+        </ol>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <button type="button" className="btn-lime" onClick={() => onNavigate(user ? 'Provider Application' : 'Auth')}>
+            {user ? 'Create my profile →' : 'Sign in to continue →'}
+          </button>
+          <button type="button" className="btn-outline" onClick={() => onNavigate('Home')}>
+            Back to marketplace
+          </button>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <div className="portal-layout">
       {/* ======================================================== */}
@@ -370,7 +444,7 @@ export const VendorWorkspacePage: React.FC<VendorWorkspacePageProps> = ({
             <div className="portal-brand" onClick={() => onNavigate('Home')} style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 6 }}>
               <EclatLogo light={true} size={30} />
               <span className="portal-role-badge">
-                {isArtisan ? 'Campus Artisan Portal' : 'Approved Vendor Portal'}
+                {isArtisan ? 'Artisan Portal' : 'Vendor Portal'}
               </span>
             </div>
             <div style={{ marginTop: 14, fontSize: 13, color: '#d1d5db', display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -378,7 +452,7 @@ export const VendorWorkspacePage: React.FC<VendorWorkspacePageProps> = ({
               <span style={{ fontWeight: 600 }}>
                 {isApproved
                   ? (primaryProvider?.verified ? 'Verified & Live' : 'Approved & Live')
-                  : 'Waiting for Final Approval'}
+                  : statusNotice.title}
               </span>
             </div>
           </div>
@@ -518,7 +592,7 @@ export const VendorWorkspacePage: React.FC<VendorWorkspacePageProps> = ({
               style={{ fontWeight: 700, opacity: isApproved ? 1 : 0.6, cursor: isApproved ? 'pointer' : 'not-allowed' }}
               onClick={() => {
                 if (!isApproved) {
-                  onToast('Waiting for final approval by administrator before uploading products.', 'error');
+                  onToast('Your profile needs to be approved before uploading products.', 'error');
                   return;
                 }
                 setItemKind('PRODUCT');
@@ -533,7 +607,7 @@ export const VendorWorkspacePage: React.FC<VendorWorkspacePageProps> = ({
               style={{ opacity: isApproved ? 1 : 0.6, cursor: isApproved ? 'pointer' : 'not-allowed' }}
               onClick={() => {
                 if (!isApproved) {
-                  onToast('Waiting for final approval by administrator before adding services.', 'error');
+                  onToast('Your profile needs to be approved before adding services.', 'error');
                   return;
                 }
                 setItemKind('SERVICE');
@@ -548,7 +622,7 @@ export const VendorWorkspacePage: React.FC<VendorWorkspacePageProps> = ({
               style={{ opacity: isApproved ? 1 : 0.6, cursor: isApproved ? 'pointer' : 'not-allowed' }}
               onClick={() => {
                 if (!isApproved) {
-                  onToast('Waiting for final approval by administrator before adding projects.', 'error');
+                  onToast('Your profile needs to be approved before adding projects.', 'error');
                   return;
                 }
                 setItemKind('PROJECT');
@@ -583,14 +657,26 @@ export const VendorWorkspacePage: React.FC<VendorWorkspacePageProps> = ({
             <div style={{ flex: 1 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 4 }}>
                 <h3 style={{ margin: 0, color: '#92400e', fontSize: 17, fontWeight: 800 }}>
-                  Waiting for Final Approval
+                  {statusNotice.title}
                 </h3>
                 <span className="card-badge" style={{ background: '#fef3c7', color: '#92400e', fontWeight: 700, border: '1px solid #fde68a' }}>
-                  Status: PENDING SUPERADMIN APPROVAL
+                  {statusNotice.badge}
                 </span>
               </div>
               <p style={{ margin: 0, fontSize: 14, color: '#78350f', lineHeight: 1.55 }}>
-                Your {isArtisan ? 'artisan' : 'vendor'} account is currently <strong>waiting for final approval by the super administrator</strong>. You will be able to add and upload items, products, and services once your registration is approved.
+                {statusNotice.text}
+                {(providerStatus === 'MORE_INFO' || providerStatus === 'REJECTED') && (
+                  <>
+                    {' '}
+                    <button
+                      type="button"
+                      onClick={() => onNavigate('Provider Application')}
+                      style={{ background: 'none', border: 'none', padding: 0, color: 'var(--brand-purple)', fontWeight: 700, textDecoration: 'underline', cursor: 'pointer', fontSize: 14 }}
+                    >
+                      Update my profile
+                    </button>
+                  </>
+                )}
               </p>
             </div>
           </div>
@@ -648,7 +734,7 @@ export const VendorWorkspacePage: React.FC<VendorWorkspacePageProps> = ({
                 >
                   {isApproved
                     ? (primaryProvider?.verified ? '✓ Verified Artisan & Live' : '✓ Approved Provider & Live')
-                    : '⏳ Waiting for Final Approval'}
+                    : `⏳ ${statusNotice.title}`}
                 </span>
               </div>
             </div>
@@ -744,7 +830,7 @@ export const VendorWorkspacePage: React.FC<VendorWorkspacePageProps> = ({
                   {totalReviewsCount > 0 ? `${avgProviderRating} ★` : 'No reviews'}
                 </div>
                 <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>
-                  {totalReviewsCount} verified review{totalReviewsCount === 1 ? '' : 's'}
+                  {totalReviewsCount} review{totalReviewsCount === 1 ? '' : 's'}
                 </div>
               </div>
             </div>
@@ -755,7 +841,7 @@ export const VendorWorkspacePage: React.FC<VendorWorkspacePageProps> = ({
                 className="portal-quick-btn"
                 onClick={() => {
                   if (!isApproved) {
-                    onToast('Waiting for final approval by administrator before uploading products.', 'error');
+                    onToast('Your profile needs to be approved before uploading products.', 'error');
                     return;
                   }
                   setItemKind('PRODUCT');
@@ -773,7 +859,7 @@ export const VendorWorkspacePage: React.FC<VendorWorkspacePageProps> = ({
                 className="portal-quick-btn"
                 onClick={() => {
                   if (!isApproved) {
-                    onToast('Waiting for final approval by administrator before adding services.', 'error');
+                    onToast('Your profile needs to be approved before adding services.', 'error');
                     return;
                   }
                   setItemKind('SERVICE');
@@ -791,7 +877,7 @@ export const VendorWorkspacePage: React.FC<VendorWorkspacePageProps> = ({
                 className="portal-quick-btn"
                 onClick={() => {
                   if (!isApproved) {
-                    onToast('Waiting for final approval by administrator before adding projects.', 'error');
+                    onToast('Your profile needs to be approved before adding projects.', 'error');
                     return;
                   }
                   setItemKind('PROJECT');
@@ -964,8 +1050,7 @@ export const VendorWorkspacePage: React.FC<VendorWorkspacePageProps> = ({
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <strong>{rev.customer_name || 'Verified Customer'}</strong>
-                        <span style={{ fontSize: 10.5, background: '#dcfce7', color: '#15803d', padding: '1px 5px', borderRadius: 4, fontWeight: 600 }}>✓ Verified</span>
+                        <strong>{rev.customer_name || 'Community member'}</strong>
                       </div>
                       <span style={{ color: '#eab308', fontSize: 14 }}>
                         {'★'.repeat(rev.rating)}{'☆'.repeat(5 - rev.rating)}
@@ -977,7 +1062,7 @@ export const VendorWorkspacePage: React.FC<VendorWorkspacePageProps> = ({
 
                 {providerReviews.length === 0 && (
                   <p style={{ color: 'var(--text-muted)', fontSize: 13.5, margin: '8px 0' }}>
-                    No customer reviews yet. Once clients engage with your store or services, verified reviews will appear here.
+                    No customer reviews yet. Once clients engage with your store or services, their reviews will appear here.
                   </p>
                 )}
               </div>
@@ -1016,7 +1101,7 @@ export const VendorWorkspacePage: React.FC<VendorWorkspacePageProps> = ({
                 style={{ opacity: isApproved ? 1 : 0.6, cursor: isApproved ? 'pointer' : 'not-allowed' }}
                 onClick={() => {
                   if (!isApproved) {
-                    onToast('Waiting for final approval by administrator before adding items, services, or projects.', 'error');
+                    onToast('Your profile needs to be approved before adding items, services, or projects.', 'error');
                     return;
                   }
                   setItemKind(activeTab === 'services' ? 'SERVICE' : activeTab === 'projects' ? 'PROJECT' : 'PRODUCT');
@@ -1148,7 +1233,7 @@ export const VendorWorkspacePage: React.FC<VendorWorkspacePageProps> = ({
                       style={{ color: '#dc2626', borderColor: '#fca5a5', opacity: isApproved ? 1 : 0.6, cursor: isApproved ? 'pointer' : 'not-allowed' }}
                       onClick={() => {
                         if (!isApproved) {
-                          onToast('Waiting for final approval by the administrator before you can delete items.', 'error');
+                          onToast('Your profile needs to be approved before you can delete items.', 'error');
                           return;
                         }
                         setItemToDelete(item);
@@ -1179,7 +1264,7 @@ export const VendorWorkspacePage: React.FC<VendorWorkspacePageProps> = ({
                     style={{ opacity: isApproved ? 1 : 0.6, cursor: isApproved ? 'pointer' : 'not-allowed' }}
                     onClick={() => {
                       if (!isApproved) {
-                        onToast('Waiting for final approval by the administrator before you can upload or add items.', 'error');
+                        onToast('Your profile needs to be approved before you can upload or add items.', 'error');
                         return;
                       }
                       setItemKind(activeTab === 'services' ? 'SERVICE' : 'PRODUCT');
@@ -1202,10 +1287,10 @@ export const VendorWorkspacePage: React.FC<VendorWorkspacePageProps> = ({
             <section className="form-panel" style={{ background: '#fff', maxWidth: 760, margin: '0 auto', textAlign: 'center', padding: '48px 24px', border: '2px solid #fde68a', borderRadius: 12 }}>
               <div style={{ fontSize: 48, marginBottom: 14 }}>⏳</div>
               <h2 style={{ color: '#92400e', margin: '0 0 10px 0', fontSize: 22, fontWeight: 800 }}>
-                Waiting for Final Approval
+                {statusNotice.title}
               </h2>
               <p style={{ maxWidth: 540, margin: '0 auto 20px', fontSize: 14.5, color: '#78350f', lineHeight: 1.6 }}>
-                Your {isArtisan ? 'artisan' : 'vendor'} account is currently <strong>waiting for final approval by the super administrator</strong>. Vendors and artisans can only add items and products when a super admin approves their registration.
+                {statusNotice.text}
               </p>
               <button className="btn-outline btn-sm" onClick={() => setActiveTab('dashboard')}>
                 ← Back to Dashboard Overview
@@ -1411,14 +1496,24 @@ export const VendorWorkspacePage: React.FC<VendorWorkspacePageProps> = ({
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <div>
-                <h3 style={{ margin: 0 }}>Community Service Leads & Inquiries</h3>
+                <h3 style={{ margin: 0 }}>Customer requests</h3>
                 <p style={{ margin: '4px 0 0', color: 'var(--text-muted)', fontSize: 13 }}>
-                  Direct service requests posted by residents and students in Ogbomoso.
+                  Open requests from students and residents. Requests in your category are listed first.
                 </p>
               </div>
-              <button className="btn-outline btn-sm" onClick={onRefresh}>
-                🔄 Refresh Leads
-              </button>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={onlyMatchingLeads}
+                    onChange={e => setOnlyMatchingLeads(e.target.checked)}
+                  />
+                  Only my category ({matchingLeadCount})
+                </label>
+                <button className="btn-outline btn-sm" onClick={onRefresh}>
+                  🔄 Refresh
+                </button>
+              </div>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -1428,6 +1523,9 @@ export const VendorWorkspacePage: React.FC<VendorWorkspacePageProps> = ({
                     <div style={{ flex: 1 }}>
                       <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 4 }}>
                         <span className="card-badge">{lead.category || lead.category_name || 'Request'}</span>
+                        {isMatchingLead(lead) && (
+                          <span className="card-badge" style={{ background: '#ecfccb', color: '#3f6212' }}>Matches your category</span>
+                        )}
                         <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>📍 General Area: {lead.location_area || lead.location}</span>
                       </div>
                       <h4 style={{ margin: '4px 0', fontSize: 16 }}>{lead.title}</h4>
@@ -1457,7 +1555,7 @@ export const VendorWorkspacePage: React.FC<VendorWorkspacePageProps> = ({
 
               {openRequests.length === 0 && (
                 <div style={{ textAlign: 'center', padding: '50px 20px', background: '#fff', borderRadius: 12, border: '1px solid var(--border)' }}>
-                  <p style={{ color: 'var(--text-muted)', margin: 0 }}>No open customer requests matching your trade right now.</p>
+                  <p style={{ color: 'var(--text-muted)', margin: 0 }}>{onlyMatchingLeads ? 'No open requests in your category right now.' : 'No open customer requests right now.'}</p>
                 </div>
               )}
             </div>
@@ -1513,7 +1611,7 @@ export const VendorWorkspacePage: React.FC<VendorWorkspacePageProps> = ({
                   </h2>
                   <p style={{ margin: '4px 0 0', color: 'var(--text-muted)', fontSize: 13.5 }}>
                     {totalReviewsCount > 0
-                      ? `Based on ${totalReviewsCount} verified campus customer review${totalReviewsCount === 1 ? '' : 's'}`
+                      ? `Based on ${totalReviewsCount} customer review${totalReviewsCount === 1 ? '' : 's'}`
                       : 'Build your campus reputation by providing great products and reliable services.'}
                   </p>
                 </div>
@@ -1588,9 +1686,6 @@ export const VendorWorkspacePage: React.FC<VendorWorkspacePageProps> = ({
                         <div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                             <strong>{rev.customer_name || 'Community Customer'}</strong>
-                            <span style={{ fontSize: 11, background: '#dcfce7', color: '#15803d', padding: '1px 6px', borderRadius: 4, fontWeight: 600 }}>
-                              ✓ Verified Customer
-                            </span>
                           </div>
                           <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
                             {new Date(rev.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
@@ -1622,7 +1717,7 @@ export const VendorWorkspacePage: React.FC<VendorWorkspacePageProps> = ({
                   <h3 style={{ margin: '0 0 6px 0' }}>No Reviews in this Category</h3>
                   <p style={{ color: 'var(--text-muted)', fontSize: 13.5, margin: 0 }}>
                     {providerReviews.length === 0
-                      ? 'You have not received any customer reviews yet. Verified reviews from community buyers and clients will appear here.'
+                      ? 'You have not received any customer reviews yet. Reviews from buyers and clients will appear here.'
                       : 'No reviews found with the selected star filter.'}
                   </p>
                 </div>

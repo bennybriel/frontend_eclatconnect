@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { request } from '../api/client';
-import { RoleName } from '../types';
+import { RoleName, User } from '../types';
 import { EclatLogo } from '../components/EclatLogo';
 
 interface AuthPageProps {
-  onSuccess: () => void;
+  onSuccess: (user?: User) => void;
   onToast: (msg: string, type?: 'info' | 'success' | 'error') => void;
 }
 
@@ -41,7 +41,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess, onToast }) => {
     try {
       const u = await login(email.trim(), password);
       onToast(`Welcome back, ${u.name}!`, 'success');
-      onSuccess();
+      onSuccess(u);
     } catch (err: any) {
       onToast(err.message, 'error');
     } finally {
@@ -74,8 +74,8 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess, onToast }) => {
         setTab('login');
         onToast(`${role === 'ARTISAN' ? 'Artisan' : 'Vendor'} registration received! Please check your email to activate your account.`, 'success');
       } else {
-        onToast(`Account created successfully as ${res.user.role}!`, 'success');
-        onSuccess();
+        onToast('Your account has been created.', 'success');
+        onSuccess(res.user);
       }
     } catch (err: any) {
       onToast(err.message, 'error');

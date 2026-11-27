@@ -1,0 +1,494 @@
+/* =====================================================================
+   Hero search: section tabs with a sliding pill, a search box with
+   suggestions, recent and popular searches, and the "Post what you need"
+   link. Builds on the hero's .hh-search / .hh-row / .hh-query styles.
+   Classes are prefixed "hs-". Global `button` rules are overridden with
+   ".hh button.*".
+   ===================================================================== */
+
+.hs {
+  position: relative;
+}
+
+/* While the visitor is searching, the suggestions sit above the photo column and the
+   sections below, and may extend past the bottom of the hero */
+.hh-copy:focus-within {
+  z-index: 3;
+}
+
+.hh:focus-within {
+  z-index: 5;
+}
+
+@supports (overflow-x: clip) {
+  .hh:focus-within {
+    overflow-x: clip;
+    overflow-y: visible;
+  }
+}
+
+/* ---------- Tabs with a sliding pill ---------- */
+
+.hs-tabs {
+  position: relative;
+}
+
+/* More tabs to the right: the row fades out at the edge, so it reads as scrollable, not cut off */
+.hs-tabs.has-more {
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 44px), transparent);
+  mask-image: linear-gradient(to right, #000 calc(100% - 44px), transparent);
+}
+
+.hs-tab-indicator {
+  position: absolute;
+  top: 2px;
+  left: 0;
+  height: calc(100% - 10px);
+  border-radius: 999px;
+  background: var(--brand-royal);
+  box-shadow: 0 6px 14px rgba(76, 1, 106, 0.28);
+  transition: transform 0.38s cubic-bezier(0.3, 0.8, 0.2, 1), width 0.38s cubic-bezier(0.3, 0.8, 0.2, 1);
+  z-index: 0;
+}
+
+.hh button.hs-tab {
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
+  height: 36px;
+  padding: 0 16px;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink-2);
+  font-size: 14px;
+  font-weight: 700;
+  transition: color 0.25s ease, background-color 0.2s ease;
+}
+
+.hh button.hs-tab:hover {
+  background: transparent;
+  color: var(--brand-royal);
+}
+
+.hh button.hs-tab.is-active,
+.hh button.hs-tab.is-active:hover {
+  color: #fff;
+}
+
+/* ---------- Search box extras ---------- */
+
+.hs-query input {
+  padding-right: 48px;
+}
+
+.hs-kbd {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  display: grid;
+  place-items: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 6px;
+  border: 1px solid #d9d5de;
+  border-bottom-width: 2px;
+  border-radius: 6px;
+  background: #fff;
+  color: #77727d;
+  font-family: ui-monospace, 'SFMono-Regular', Consolas, monospace;
+  font-size: 12px;
+  font-weight: 700;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.hh button.hs-clear {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border-radius: 50%;
+  background: #ebe8ef;
+  color: var(--brand-charcoal);
+  transform: translateY(-50%);
+  animation: hs-pop 0.2s ease-out;
+}
+
+.hh button.hs-clear:hover {
+  background: var(--brand-royal-tint);
+  color: var(--brand-royal);
+}
+
+@keyframes hs-pop {
+  from {
+    opacity: 0;
+    transform: translateY(-50%) scale(0.6);
+  }
+}
+
+/* ---------- Suggestions dropdown ---------- */
+
+.hs-dropdown {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 0;
+  z-index: 40;
+  width: max(100%, 380px);
+  max-width: min(560px, calc(100vw - 32px));
+  padding: 8px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  box-shadow: 0 24px 56px rgba(18, 0, 28, 0.3);
+  max-height: min(440px, 70vh);
+  overflow-y: auto;
+  transform-origin: top left;
+  animation: hs-drop 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes hs-drop {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.98);
+  }
+}
+
+.hs-dropdown-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 4px 10px 6px;
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #6e6975;
+}
+
+.hs-dropdown-title span {
+  color: var(--brand-royal);
+}
+
+.hh button.hs-link-btn {
+  height: auto;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: none;
+  color: var(--brand-royal);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.hh button.hs-link-btn:hover {
+  background: var(--brand-royal-tint);
+}
+
+.hs-dropdown ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.hs-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  cursor: pointer;
+  animation: hs-item-in 0.26s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation-delay: calc(var(--hs-i, 0) * 28ms);
+  transition: background-color 0.15s ease;
+}
+
+.hs-option.is-active {
+  background: var(--brand-royal-tint);
+}
+
+@keyframes hs-item-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+.hs-option-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  flex-shrink: 0;
+  background: var(--brand-royal-tint);
+  color: var(--brand-royal);
+  transition: transform 0.2s ease;
+}
+
+.hs-option.is-active .hs-option-icon {
+  transform: scale(1.08);
+}
+
+.hs-type-popular {
+  background: var(--brand-electric);
+  color: var(--brand-charcoal);
+}
+
+.hs-type-listing {
+  background: var(--brand-sage);
+  color: var(--brand-royal);
+}
+
+.hs-type-area {
+  background: #e7f8ee;
+  color: #13794a;
+}
+
+.hs-type-recent {
+  background: #f1eff3;
+  color: #5c5862;
+}
+
+.hs-option-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--brand-charcoal);
+}
+
+.hs-option-label mark {
+  background: none;
+  color: var(--brand-royal);
+  font-weight: 800;
+}
+
+.hs-option-meta {
+  flex-shrink: 0;
+  max-width: 40%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 600;
+  color: #6e6975;
+}
+
+.hs-dropdown-foot {
+  margin: 6px 0 0;
+  padding: 8px 10px 2px;
+  border-top: 1px solid var(--line);
+  font-size: 11.5px;
+  font-weight: 500;
+  color: #6e6975;
+}
+
+.hs-dropdown-foot kbd {
+  display: inline-block;
+  min-width: 18px;
+  margin-right: 3px;
+  padding: 0 4px;
+  border: 1px solid #d9d5de;
+  border-radius: 4px;
+  background: #fafafa;
+  font-family: inherit;
+  font-size: 11px;
+  text-align: center;
+}
+
+/* ---------- Search button: a light sweep on hover, a press on click ---------- */
+
+.hh button.hs-submit {
+  position: relative;
+  overflow: hidden;
+  transition: background-color 0.15s ease, transform 0.12s ease;
+}
+
+.hh button.hs-submit::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -70%;
+  width: 45%;
+  height: 100%;
+  background: linear-gradient(100deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.6) 50%, rgba(255, 255, 255, 0) 100%);
+  transform: skewX(-20deg);
+  transition: left 0.65s ease;
+  pointer-events: none;
+}
+
+.hh button.hs-submit:hover::after {
+  left: 130%;
+}
+
+.hh button.hs-submit:active {
+  transform: scale(0.97);
+}
+
+/* ---------- Recent and popular chips ---------- */
+
+.hs .hh-popular-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.hs-recent + .hh-popular {
+  margin-top: 8px;
+}
+
+.hs-chip-item {
+  animation: hs-chip-in 0.36s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation-delay: calc(var(--hs-i, 0) * 45ms);
+}
+
+@keyframes hs-chip-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.96);
+  }
+}
+
+.hh button.hs-chip {
+  transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease, transform 0.18s ease;
+}
+
+.hh button.hs-chip:hover {
+  transform: translateY(-2px);
+}
+
+/* ---------- "Can't find it?" link ---------- */
+
+.hh button.hs-post {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 6px 16px 6px 6px;
+  border-radius: 999px;
+  border: 1px dashed rgba(243, 254, 214, 0.38);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--brand-sage);
+  font-size: 14px;
+  font-weight: 500;
+  text-align: left;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.hh button.hs-post strong {
+  color: #fff;
+  font-weight: 800;
+}
+
+.hh button.hs-post:hover {
+  background: rgba(186, 248, 15, 0.1);
+  border-color: var(--brand-electric);
+  border-style: solid;
+}
+
+.hs-post-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--brand-electric);
+  color: var(--brand-charcoal);
+}
+
+.hs-post-arrow {
+  flex-shrink: 0;
+  color: var(--brand-electric);
+  transition: transform 0.2s ease;
+}
+
+.hh button.hs-post:hover .hs-post-arrow {
+  transform: translateX(4px);
+}
+
+.hh button.hs-post:focus-visible {
+  outline: 2px solid var(--brand-electric);
+  outline-offset: 2px;
+}
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 1024px) {
+  .hs-kbd,
+  .hs-dropdown-foot {
+    display: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .hh button.hs-tab {
+    height: 34px;
+    padding: 0 14px;
+    font-size: 13.5px;
+  }
+  .hs-dropdown {
+    width: 100%;
+    max-width: none;
+  }
+  .hs-option-meta {
+    display: none;
+  }
+  .hs-post-more {
+    display: none;
+  }
+  /* Recent searches still show in the dropdown; the row is left out to keep the hero short */
+  .hh .hs-recent {
+    display: none;
+  }
+  .hh button.hs-post {
+    width: 100%;
+    margin-top: 18px;
+    gap: 8px;
+    border-radius: 16px;
+    padding-right: 12px;
+    font-size: 12.5px;
+  }
+  /* One line on a phone */
+  .hs-post-text {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+/* Phones and tablets: a solid fill, so the brand swoosh behind it does not show through */
+@media (max-width: 959px) {
+  .hh button.hs-post {
+    background: linear-gradient(rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.06)), var(--brand-royal);
+  }
+}
+
+/* Very narrow phones: the "Can't find it?" line still fits on one line */
+@media (max-width: 380px) {
+  .hh button.hs-post {
+    font-size: 11.5px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hs *,
+  .hs *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
