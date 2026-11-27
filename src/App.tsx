@@ -17,6 +17,7 @@ import { RequestsPage } from './pages/RequestsPage';
 import { PostRequestPage, RETURN_TO_KEY } from './pages/PostRequestPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { FILTER_PAGES, NOT_FOUND, buildUrl, filtersFrom, pageFor, pathFor, sectionPageFor, titleFor } from './routing';
+import { recordRecent } from './utils/recent';
 
 // Modals
 import { ListingDetailsModal } from './pages/ListingDetailsModal';
@@ -369,6 +370,11 @@ export const App: React.FC = () => {
   const pendingOpenId = useRef<string | null>(new URLSearchParams(window.location.search).get('open'));
   useEffect(() => {
     const id = pendingOpenId.current;
+    // Requests open in their own sheet on the Requests page (/requests?open=<id>)
+    if (page === 'Requests') {
+      pendingOpenId.current = null;
+      return;
+    }
     if (!id || loadingCatalog || items.length === 0) return;
     const found = items.find(it => String(it.id) === id);
     if (found) setSelectedItem(found);
@@ -378,6 +384,7 @@ export const App: React.FC = () => {
   /** Opens a listing and gives it its own address, so it can be shared and Back closes it */
   const openItem = (item: any) => {
     setSelectedItem(item);
+    recordRecent(item);
     if (!item?.id) return;
     const section = sectionPageFor(item);
     const keepFilters = pathFor(section) === pathFor(page);
@@ -713,6 +720,8 @@ export const App: React.FC = () => {
           item={selectedItem}
           isFavorite={selectedItem ? Boolean(favoritesMap[selectedItem.id] || favoritesMap[selectedItem.item_id]) : false}
           onToggleFavorite={handleToggleFavorite}
+          related={items.filter(it => sectionPageFor(it) === sectionPageFor(selectedItem))}
+          onSelectRelated={openItem}
           onClose={closeItem}
           onReport={item => {
             closeItem();

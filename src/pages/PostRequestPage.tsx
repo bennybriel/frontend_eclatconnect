@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Category, Location, RequestKind, AvailabilityStatus } from '../types';
 import { MultiImageUpload } from '../components/MultiImageUpload';
-import { CategorySelect } from '../components/CategorySelect';
+import { getCategoriesForType } from '../components/CategorySelect';
 import { request } from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import { AlertCircle, ArrowLeft, ArrowRight, Check, Clock, Home, ImagePlus, Info, Lock, MapPin, Megaphone, Package, Phone, Plus, Search, ShoppingBag, Sparkles, Tag, Wrench } from 'lucide-react';
+import '../styles/flows.css';
+import '../styles/post.css';
 
 interface PostRequestPageProps {
   categories: Category[];
@@ -53,6 +56,12 @@ export const PostRequestPage: React.FC<PostRequestPageProps> = ({
   const [images, setImages] = useState('');
   const [description, setDescription] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  // Inline hint for the first missing field (presentation only; the request sent is unchanged)
+  const [problem, setProblem] = useState<{ field: string; msg: string } | null>(null);
+  useEffect(() => {
+    setProblem(null);
+  }, [title, categoryId, customCategory, description, locationId, priceOrBudget]);
 
   useEffect(() => {
     setRequestType(resolveType());
@@ -113,7 +122,7 @@ export const PostRequestPage: React.FC<PostRequestPageProps> = ({
 
   // Dynamic Page Content unique to each page
   let pageHeading = 'Post What I Need';
-  let pageSubtitle = 'Broadcast your service or artisan requirement to approved providers around LAUTECH & Ogbomoso';
+  let pageSubtitle = 'Tell providers around LAUTECH and Ogbomoso what you need. They come to you with quotes.';
   let switchOffer: { text: string; actionText: string; targetPage: string } | null = {
     text: 'Looking to buy or sell a used item instead?',
     actionText: 'Pre-owned Marketplace →',
@@ -121,24 +130,24 @@ export const PostRequestPage: React.FC<PostRequestPageProps> = ({
   };
 
   if (isPreownedSale) {
-    pageHeading = 'Sell a Pre-owned / Used Item';
-    pageSubtitle = 'List your gadget, room appliance, textbook or hostel item for quick campus buyers';
+    pageHeading = 'Sell a used item';
+    pageSubtitle = 'List a gadget, appliance, textbook or hostel item. Buyers nearby call or WhatsApp you.';
     switchOffer = {
       text: 'Looking to buy a used item instead of selling?',
       actionText: 'Request a Used Item →',
       targetPage: 'Post Pre-owned Request',
     };
   } else if (isPreownedRequest) {
-    pageHeading = 'Request a Pre-owned / Used Item';
-    pageSubtitle = 'Tell sellers, students and residents what second-hand or used item you are looking to buy';
+    pageHeading = 'Find a used item';
+    pageSubtitle = 'Tell students and residents what second-hand item you want to buy.';
     switchOffer = {
       text: 'Have a used item to sell instead?',
       actionText: 'Sell Pre-owned Item →',
       targetPage: 'Sell Pre-owned Item',
     };
   } else if (isProduct) {
-    pageHeading = 'Request a Product to Buy';
-    pageSubtitle = 'Tell local businesses and campus shops what product you are looking to purchase';
+    pageHeading = 'Find a product';
+    pageSubtitle = 'Tell shops around campus what you want to buy. They reply with prices.';
     switchOffer = {
       text: 'Looking for an artisan or service instead?',
       actionText: 'Post What I Need →',
@@ -206,297 +215,547 @@ export const PostRequestPage: React.FC<PostRequestPageProps> = ({
     }
   };
 
+  const relevantCategories = getCategoriesForType(
+    categories,
+    isProduct || isPreownedSale || isPreownedRequest ? 'PRODUCT' : 'SERVICE'
+  );
+  const chosenCategory = categories.find(c => c.id === categoryId);
+  const isOthersCategory = chosenCategory?.name?.trim().toLowerCase() === 'others';
+  const categoryLabel = isOthersCategory && customCategory.trim() ? customCategory.trim() : chosenCategory?.name;
+  const previewImage = images.split(',').map(s => s.trim()).filter(Boolean)[0];
+  const needsCondition = isPreownedSale || isPreownedRequest;
+  const typeTag = isPreownedSale ? 'For sale' : isPreownedRequest ? 'Wanted · used' : isProduct ? 'Wanted · product' : 'Wanted · service';
+  const priceText = priceOrBudget ? `₦${Number(priceOrBudget).toLocaleString('en-NG')}` : '';
+  const statusText: Record<string, string> = { AVAILABLE: 'Available', RESERVED: 'Reserved', SOLD: 'Sold' };
+
+  const step1Done = Boolean(title.trim() && categoryId && (!isOthersCategory || customCategory.trim()));
+  const step2Done = Boolean(locationId) && (!isPreownedSale || Boolean(priceOrBudget));
+  const step3Done = Boolean(description.trim());
+  const doneCount = [step1Done, step2Done, step3Done].filter(Boolean).length;
+
+  const suggestions = isPreownedSale
+    ? ['Laptop', 'Android phone', 'Reading table', 'Gas cylinder', 'Textbooks', 'Mattress']
+    : isPreownedRequest
+    ? ['Used laptop', 'Small fridge', 'Reading table', 'Standing fan', 'Gas cylinder', 'Mattress']
+    : isProduct
+    ? ['Rechargeable fan', 'Power bank', 'Phone charger', 'Electric kettle', 'Textbook', 'Extension box']
+    : ['Laundry pickup', 'Phone screen repair', 'Hair braiding', 'Tailor for an outfit', 'Generator repair', 'Plumber'];
+
+  const tips = isPreownedSale
+    ? ['How long I have used it: ', 'Any faults: ', 'Why I am selling: ', 'Pickup or delivery: ']
+    : isPreownedRequest || isProduct
+    ? ['Brand or model: ', 'Quantity: ', 'When I need it: ', 'Delivery: ']
+    : ['What needs doing: ', 'When I need it: ', 'How urgent: ', 'Anything else: '];
+
+  const amounts = isPreownedSale ? [5000, 10000, 20000, 50000] : [2000, 5000, 10000, 20000];
+
+  const TYPES = [
+    { kind: 'SERVICE', label: 'I need a service', sub: 'Repairs, laundry, hair…', icon: <Wrench size={18} />, page: 'Post What I Need', on: isService },
+    { kind: 'PRODUCT', label: 'I want to buy', sub: 'A new product', icon: <ShoppingBag size={18} />, page: 'Post Product Request', on: isProduct },
+    { kind: 'PREOWNED_REQUEST', label: 'I want a used item', sub: 'Second-hand', icon: <Search size={18} />, page: 'Post Pre-owned Request', on: isPreownedRequest },
+    { kind: 'PREOWNED_SALE', label: "I'm selling", sub: 'Something I own', icon: <Tag size={18} />, page: 'Sell Pre-owned Item', on: isPreownedSale },
+  ];
+
+  /** First thing still missing, with the field to jump to. */
+  const firstProblem = (): { field: string; msg: string } | null => {
+    if (!title.trim()) return { field: 'title', msg: isPreownedSale ? 'Give your item a name.' : 'Tell us what you need in a few words.' };
+    if (!categoryId) return { field: 'category', msg: 'Choose a category.' };
+    if (isOthersCategory && !customCategory.trim()) return { field: 'category', msg: 'Type your category.' };
+    if (!locationId) return { field: 'area', msg: 'Choose your area.' };
+    if (isPreownedSale && !priceOrBudget) return { field: 'price', msg: 'Add your asking price.' };
+    if (!description.trim()) return { field: 'desc', msg: isPreownedSale ? 'Describe your item.' : 'Add a short description.' };
+    return null;
+  };
+
+  const onFormSubmit = (e: React.FormEvent) => {
+    // Signed-out visitors keep their draft and go to sign in, exactly as before.
+    if (isAuthenticated) {
+      const p = firstProblem();
+      if (p) {
+        e.preventDefault();
+        setProblem(p);
+        const el = document.getElementById(`pw-field-${p.field}`);
+        el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el?.querySelector<HTMLElement>('input, textarea, button')?.focus({ preventScroll: true });
+        return;
+      }
+    }
+    handleSubmit(e);
+  };
+
+  const fieldError = (field: string) =>
+    problem?.field === field ? (
+      <p className="pw-error" role="alert">
+        <AlertCircle size={14} aria-hidden="true" /> {problem.msg}
+      </p>
+    ) : null;
+
+  const addTip = (prefix: string) => {
+    setDescription(d => (d.trim() ? `${d.replace(/\s+$/, '')}\n${prefix}` : prefix));
+    requestAnimationFrame(() => {
+      const ta = document.getElementById('pw-desc') as HTMLTextAreaElement | null;
+      if (ta) {
+        ta.focus();
+        ta.setSelectionRange(ta.value.length, ta.value.length);
+      }
+    });
+  };
+
+  const submitText = isPreownedSale ? 'Publish my item' : 'Post my request';
+
+  const howSteps = isPreownedSale
+    ? [
+        ['You list it', 'Your item shows in Pre-owned with your general area.'],
+        ['Buyers reach out', 'Interested buyers call or WhatsApp you.'],
+        ['Meet and sell', 'Meet in a public place and get paid.'],
+      ]
+    : [
+        ['You post it', 'Providers around you see your request.'],
+        ['They send quotes', 'Shops and artisans reply with prices.'],
+        ['You choose', 'Compare, pick one and get it done.'],
+      ];
+
   return (
-    <section className="form-panel" style={{ maxWidth: 720, margin: '24px auto' }}>
-      {/* Header with Title & Subtitle */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
-        <div>
-          <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700, color: 'var(--brand-purple)' }}>
-            {pageHeading}
-          </h1>
-          <p style={{ margin: '4px 0 0', color: 'var(--text-muted)', fontSize: 13.5 }}>
-            {pageSubtitle}
-          </p>
-        </div>
-        <button className="btn-outline btn-sm" onClick={() => onNavigate('Home')}>
-          Cancel
+    <section className="fl pw" aria-labelledby="fl-post-title">
+      <header className="fl-head pw-head">
+        <button type="button" className="fl-back" onClick={() => onNavigate('Home')}>
+          <ArrowLeft size={16} /> Back to home
         </button>
-      </div>
+        <h1 className="fl-head-title" id="fl-post-title">{pageHeading}</h1>
+        <p className="fl-head-note">{pageSubtitle}</p>
 
-      {!isAuthenticated && (
-        <div style={{
-          background: '#fffbeb',
-          border: '1px solid #fde68a',
-          borderRadius: 8,
-          padding: '10px 14px',
-          marginBottom: 16,
-          fontSize: 13,
-          color: '#78350f',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: 8,
-        }}>
-          <span>You need an account to publish. Signing in first lets you add photos.</span>
-          <button type="button" className="btn-outline btn-sm" onClick={saveDraftAndSignIn}>
-            Sign in first
-          </button>
-        </div>
-      )}
-
-      {/* Subtle contextual switch link */}
-      {switchOffer && (
-        <div style={{
-          background: '#f8fafc',
-          border: '1px solid #e2e8f0',
-          borderRadius: 8,
-          padding: '8px 14px',
-          marginBottom: 20,
-          fontSize: 12.5,
-          color: 'var(--text-muted)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: 8,
-        }}>
-          <span>💡 {switchOffer.text}</span>
-          <button
-            type="button"
-            onClick={() => onNavigate(switchOffer!.targetPage)}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: 'var(--brand-purple)',
-              fontWeight: 700,
-              padding: 0,
-              cursor: 'pointer',
-              fontSize: 12.5,
-              textDecoration: 'underline',
-            }}
-          >
-            {switchOffer.actionText}
-          </button>
-        </div>
-      )}
-
-      <form onSubmit={handleSubmit}>
-        <div className="form-group">
-          <label>
-            {isPreownedSale
-              ? 'Item Name / Title *'
-              : isPreownedRequest
-              ? 'What used item are you looking for? (Title) *'
-              : isProduct
-              ? 'What product are you looking to buy? (Title) *'
-              : 'What service or artisan do you need? (Title) *'}
-          </label>
-          <input
-            required
-            maxLength={100}
-            placeholder={
-              isPreownedSale
-                ? 'e.g. Fairly Used HP Laptop Core i5 8GB RAM, Standing Fan, Cooking Gas Cylinder'
-                : isPreownedRequest
-                ? 'e.g. Second-hand HP Laptop Core i5, Small Refrigerator, or Standing Fan'
-                : isProduct
-                ? 'e.g. Brand new rechargeable fan, electric kettle, iPhone charger, or textbook'
-                : 'e.g. Generator repair, hostel painting, tailoring, hair styling, or plumbing'
-            }
-            value={title}
-            onChange={e => setTitle(e.target.value)}
-          />
-          <small style={{ color: 'var(--text-muted)', fontSize: 11 }}>Max 100 characters</small>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }}>
-          <CategorySelect
-            categories={categories}
-            listingType={isProduct || isPreownedSale || isPreownedRequest ? 'PRODUCT' : 'SERVICE'}
-            value={categoryId}
-            customCategory={customCategory}
-            onChange={(id) => setCategoryId(id)}
-            onCustomCategoryChange={setCustomCategory}
-            required
-            label="Category *"
-            placeholder="Choose appropriate category"
-          />
-
-          {(isPreownedSale || isPreownedRequest) && (
-            <div className="form-group">
-              <label>{isPreownedSale ? 'Item Condition *' : 'Acceptable Condition *'}</label>
-              <select value={condition} onChange={e => setCondition(e.target.value)}>
-                <option value="Used - Good Condition">Used - Good Condition</option>
-                <option value="Used - Like New">Used - Like New</option>
-                <option value="Fairly Used">Fairly Used</option>
-                <option value="Any Working Condition">Any Working Condition</option>
-                {isPreownedSale && <option value="Brand New / Sealed">Brand New / Sealed</option>}
-                {isPreownedSale && <option value="For Parts or Repair">For Parts or Repair</option>}
-              </select>
-            </div>
-          )}
-
-          {isPreownedSale && (
-            <div className="form-group">
-              <label>Availability Status *</label>
-              <select value={availabilityStatus} onChange={e => setAvailabilityStatus(e.target.value as AvailabilityStatus)}>
-                <option value="AVAILABLE">🟢 Available (Ready to sell)</option>
-                <option value="RESERVED">🟡 Reserved (Held for a buyer)</option>
-                <option value="SOLD">⚪ Sold (Already purchased)</option>
-              </select>
-            </div>
-          )}
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }}>
-          <div className="form-group">
-            <label>General Area (Campus / Town) *</label>
-            <select
-              required
-              value={locationId}
-              onChange={e => {
-                setLocationId(e.target.value);
-                const found = locations.find(l => l.id === e.target.value);
-                if (found) setGeneralArea(found.area);
-              }}
+        <div className="pw-types" role="group" aria-label="What would you like to do?">
+          {TYPES.map(t => (
+            <button
+              key={t.kind}
+              type="button"
+              className={`pw-type${t.on ? ' is-on' : ''}`}
+              aria-pressed={t.on}
+              onClick={() => !t.on && onNavigate(t.page)}
             >
-              <option value="">Select general area</option>
-              {locations.map(loc => (
-                <option key={loc.id} value={loc.id}>
-                  {loc.area} ({loc.landmark || 'Ogbomoso'})
-                </option>
-              ))}
-            </select>
-            <small style={{ color: 'var(--text-muted)', fontSize: 11 }}>
-              Publicly visible area (e.g. Under G, Adenike, Aroje)
-            </small>
+              <span className="pw-type-icon" aria-hidden="true">{t.icon}</span>
+              <span>
+                <strong>{t.label}</strong>
+                <span>{t.sub}</span>
+              </span>
+            </button>
+          ))}
+        </div>
+      </header>
+
+      <form className="fl-post" onSubmit={onFormSubmit}>
+        <div className="fl-steps">
+          {!isAuthenticated && (
+            <div className="fl-step pw-guest">
+              <Info size={20} aria-hidden="true" />
+              <p>
+                <strong>No account yet? No problem.</strong>
+                Fill this in first. When you post, we'll ask you to sign in and keep everything you typed.
+              </p>
+              <button type="button" className="fl-btn fl-btn-outline" onClick={saveDraftAndSignIn}>
+                Sign in now
+              </button>
+            </div>
+          )}
+
+          {/* 1. What */}
+          <div className={`fl-step${step1Done ? ' is-done' : ''}`}>
+            <div className="fl-step-head">
+              <span className="fl-step-num">{step1Done ? <Check size={18} strokeWidth={3} /> : '1'}</span>
+              <div>
+                <h2 className="fl-step-title">
+                  {isPreownedSale
+                    ? 'What are you selling?'
+                    : isPreownedRequest
+                    ? 'What used item do you want?'
+                    : isProduct
+                    ? 'What do you want to buy?'
+                    : 'What do you need done?'}
+                </h2>
+                <p className="fl-step-sub">Write it in a few words, or tap one of the popular ones.</p>
+              </div>
+            </div>
+
+            <div className="fl-field" id="pw-field-title">
+              <div className={`fl-input pw-big${problem?.field === 'title' ? ' is-bad' : ''}`}>
+                <Sparkles size={20} aria-hidden="true" />
+                <input
+                  id="fl-post-title-input"
+                  maxLength={100}
+                  aria-label="Title"
+                  placeholder={
+                    isPreownedSale
+                      ? 'e.g. HP laptop, Core i5, 8GB RAM'
+                      : isPreownedRequest
+                      ? 'e.g. Small fridge for my hostel room'
+                      : isProduct
+                      ? 'e.g. Rechargeable standing fan'
+                      : 'e.g. Fix my generator at Peace Lodge'
+                  }
+                  value={title}
+                  onChange={e => setTitle(e.target.value)}
+                />
+                <span className={`fl-counter${title.length > 85 ? ' is-near' : ''}`}>{title.length}/100</span>
+              </div>
+              {fieldError('title')}
+              <div className="pw-chips" style={{ marginTop: 10 }}>
+                <span className="pw-chips-label">Popular:</span>
+                {suggestions.map(sg => (
+                  <button key={sg} type="button" className={`pw-chip is-small${title === sg ? ' is-on' : ''}`} onClick={() => setTitle(sg)}>
+                    {sg}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="fl-field" id="pw-field-category">
+              <div className="fl-label">Category</div>
+              {relevantCategories.length > 0 ? (
+                <div className="pw-chips">
+                  {relevantCategories.map(c => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      className={`pw-chip${categoryId === c.id ? ' is-on' : ''}`}
+                      aria-pressed={categoryId === c.id}
+                      onClick={() => setCategoryId(c.id)}
+                    >
+                      {categoryId === c.id && <Check size={14} strokeWidth={3} />}
+                      {c.name}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p className="fl-hint">Loading categories…</p>
+              )}
+              {isOthersCategory && (
+                <div className="fl-input" style={{ marginTop: 10 }}>
+                  <Tag size={18} aria-hidden="true" />
+                  <input
+                    placeholder="Type your category"
+                    aria-label="Your category"
+                    value={customCategory}
+                    onChange={e => setCustomCategory(e.target.value)}
+                  />
+                </div>
+              )}
+              {fieldError('category')}
+            </div>
+
+            {needsCondition && (
+              <div className="fl-field">
+                <div className="fl-label">{isPreownedSale ? 'Condition' : 'Condition you will accept'}</div>
+                <div className="pw-chips">
+                  {[
+                    'Used - Like New',
+                    'Used - Good Condition',
+                    'Fairly Used',
+                    'Any Working Condition',
+                    ...(isPreownedSale ? ['Brand New / Sealed', 'For Parts or Repair'] : []),
+                  ].map(c => (
+                    <button
+                      key={c}
+                      type="button"
+                      className={`pw-chip${condition === c ? ' is-on' : ''}`}
+                      aria-pressed={condition === c}
+                      onClick={() => setCondition(c)}
+                    >
+                      {c}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {isPreownedSale && (
+              <div className="fl-field" style={{ marginBottom: 0 }}>
+                <div className="fl-label">Availability</div>
+                <div className="pw-chips">
+                  {(['AVAILABLE', 'RESERVED', 'SOLD'] as AvailabilityStatus[]).map(s => (
+                    <button
+                      key={s}
+                      type="button"
+                      className={`pw-chip${availabilityStatus === s ? ' is-on' : ''}`}
+                      aria-pressed={availabilityStatus === s}
+                      onClick={() => setAvailabilityStatus(s)}
+                    >
+                      {statusText[s]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
-          <div className="form-group">
-            <label>
-              {isPreownedSale ? 'Asking Price in ₦ *' : 'Indicative Budget in ₦ (Optional)'}
+          {/* 2. Where and budget */}
+          <div className={`fl-step${step2Done ? ' is-done' : ''}`}>
+            <div className="fl-step-head">
+              <span className="fl-step-num">{step2Done ? <Check size={18} strokeWidth={3} /> : '2'}</span>
+              <div>
+                <h2 className="fl-step-title">Where are you, and {isPreownedSale ? 'your price' : 'your budget'}?</h2>
+                <p className="fl-step-sub">People only see your general area. Your exact address stays private.</p>
+              </div>
+            </div>
+
+            <div className="fl-field" id="pw-field-area">
+              <div className="fl-label">Your area</div>
+              <div className="pw-areas">
+                {locations.map(loc => (
+                  <button
+                    key={loc.id}
+                    type="button"
+                    className={`pw-area${locationId === loc.id ? ' is-on' : ''}`}
+                    aria-pressed={locationId === loc.id}
+                    onClick={() => {
+                      setLocationId(loc.id);
+                      setGeneralArea(loc.area);
+                    }}
+                  >
+                    <strong>
+                      <MapPin size={14} aria-hidden="true" /> {loc.area}
+                    </strong>
+                    <span>{loc.landmark || 'Ogbomoso'}</span>
+                  </button>
+                ))}
+              </div>
+              {fieldError('area')}
+            </div>
+
+            <div className="fl-field" id="pw-field-price">
+              <div className="fl-label">
+                {isPreownedSale ? 'Asking price' : 'Budget'}
+                {!isPreownedSale && <span className="fl-label-note">Optional</span>}
+              </div>
+              <div className="pw-money">
+                <div className={`fl-input${problem?.field === 'price' ? ' is-bad' : ''}`}>
+                  <span aria-hidden="true" style={{ fontWeight: 900, fontSize: 17 }}>₦</span>
+                  <input
+                    type="number"
+                    min="0"
+                    inputMode="numeric"
+                    aria-label={isPreownedSale ? 'Asking price in naira' : 'Budget in naira'}
+                    placeholder={isPreownedSale ? '45000' : '5000'}
+                    value={priceOrBudget}
+                    onChange={e => setPriceOrBudget(e.target.value)}
+                  />
+                </div>
+                <div className="pw-chips">
+                  {amounts.map(a => (
+                    <button
+                      key={a}
+                      type="button"
+                      className={`pw-chip is-small${Number(priceOrBudget) === a ? ' is-on' : ''}`}
+                      onClick={() => setPriceOrBudget(String(a))}
+                    >
+                      ₦{a.toLocaleString('en-NG')}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {fieldError('price')}
+            </div>
+
+            <div className="fl-field">
+              <label className="fl-label" htmlFor="fl-post-address">
+                <span>
+                  Hostel, lodge or street <span className="fl-label-note">Optional</span>
+                </span>
+                <span className="fl-private">
+                  <Lock size={12} aria-hidden="true" /> Private
+                </span>
+              </label>
+              <div className="fl-input">
+                <Home size={18} aria-hidden="true" />
+                <input
+                  id="fl-post-address"
+                  placeholder="e.g. Peace Lodge, behind Bovas"
+                  value={privateAddress}
+                  onChange={e => setPrivateAddress(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <label className="fl-toggle" htmlFor="privacyConsent">
+              <input
+                type="checkbox"
+                id="privacyConsent"
+                checked={shareAddressAgreed}
+                onChange={e => setShareAddressAgreed(e.target.checked)}
+              />
+              <span className="fl-toggle-track" aria-hidden="true" />
+              <span className="fl-toggle-text">
+                <strong>Keep my details private</strong>
+                Show only {locationId ? generalArea : 'your general area'} in public. Share my exact address and contact only with a provider
+                I choose.
+              </span>
             </label>
-            <input
-              type="number"
-              min="0"
-              required={isPreownedSale}
-              placeholder={isPreownedSale ? 'e.g. 45000' : 'e.g. 5000'}
-              value={priceOrBudget}
-              onChange={e => setPriceOrBudget(e.target.value)}
-            />
+
+            {isPreownedSale && (
+              <div className="fl-notice" style={{ margin: '14px 0 0' }}>
+                <Phone size={20} />
+                <div className="fl-notice-body">
+                  <strong>Buyers will see your phone number</strong>
+                  So they can call or WhatsApp you{user?.phone ? <> on <b>{user.phone}</b></> : null}.
+                  {isAuthenticated && !user?.phone && ' Your account has no phone number yet, so buyers may not be able to reach you.'}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* 3. Details and photos */}
+          <div className={`fl-step${step3Done ? ' is-done' : ''}`}>
+            <div className="fl-step-head">
+              <span className="fl-step-num">{step3Done ? <Check size={18} strokeWidth={3} /> : '3'}</span>
+              <div>
+                <h2 className="fl-step-title">{isPreownedSale ? 'Describe your item' : 'Give a few details'}</h2>
+                <p className="fl-step-sub">
+                  {isPreownedSale ? 'Honest details and clear photos sell faster.' : 'The clearer you are, the better the quotes.'}
+                </p>
+              </div>
+            </div>
+
+            <div className="fl-field" id="pw-field-desc">
+              <div className="fl-label">
+                Description
+                <span className={`fl-counter${description.length > 1800 ? ' is-near' : ''}`}>{description.length}/2000</span>
+              </div>
+              <div className={`fl-input is-area${problem?.field === 'desc' ? ' is-bad' : ''}`}>
+                <textarea
+                  id="pw-desc"
+                  maxLength={2000}
+                  aria-label="Description"
+                  placeholder={
+                    isPreownedSale
+                      ? 'How long you have used it, any faults, why you are selling, and pickup or delivery.'
+                      : isPreownedRequest
+                      ? 'Brand, model, the condition you will accept, and when you need it.'
+                      : isProduct
+                      ? 'Quantity, brand or specs, and whether you need delivery.'
+                      : 'What needs doing, when you need it done, and anything a provider should know.'
+                  }
+                  value={description}
+                  onChange={e => setDescription(e.target.value)}
+                />
+              </div>
+              {fieldError('desc')}
+              <div className="pw-tips">
+                <span className="pw-chips-label">Not sure what to write? Add:</span>
+                {tips.map(t => (
+                  <button key={t} type="button" className="pw-tip" onClick={() => addTip(t)}>
+                    <Plus size={13} aria-hidden="true" /> {t.replace(/:\s*$/, '')}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {isAuthenticated ? (
+              <MultiImageUpload
+                label={isPreownedSale ? 'Photos of your item (up to 5)' : 'Photos (optional)'}
+                hint={
+                  isPreownedSale
+                    ? 'Take photos from different angles in good light.'
+                    : 'A sample design, the broken item or a reference picture helps a lot.'
+                }
+                maxImages={5}
+                value={images}
+                onChange={setImages}
+              />
+            ) : (
+              <div className="pw-signin-photos">
+                <ImagePlus size={26} aria-hidden="true" />
+                <p>
+                  <strong>Want to add photos?</strong>
+                  Sign in first. We'll keep everything you've typed.
+                </p>
+                <button type="button" className="fl-btn fl-btn-outline" onClick={saveDraftAndSignIn}>
+                  Sign in
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
-        <div className="form-group">
-          <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
-            <span>Specific Hostel, Lodge or Street Address (Optional)</span>
-            <span style={{ fontSize: 11, background: '#f0fdf4', color: '#166534', padding: '2px 8px', borderRadius: 4, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-              🔒 Private · Never displayed publicly
-            </span>
-          </label>
-          <input
-            placeholder="e.g. Flat 3, Peace Lodge, Behind Bovas, or specific street name"
-            value={privateAddress}
-            onChange={e => setPrivateAddress(e.target.value)}
-          />
-          <small style={{ color: 'var(--text-muted)', fontSize: 11.5, display: 'block', marginTop: 4 }}>
-            🛡️ Kept strictly confidential. The public only sees your general area ({generalArea || 'e.g. Adenike or LAUTECH Campus'}).
-          </small>
-        </div>
-
-        {isPreownedSale && (
-          <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 12.5, color: '#334155', lineHeight: 1.5 }}>
-            📞 <strong>Buyers will see your phone number</strong> so they can call or WhatsApp you
-            {user?.phone ? <> (<strong>{user.phone}</strong>)</> : null}.
-            {isAuthenticated && !user?.phone && ' Your account has no phone number yet, so buyers may not be able to reach you.'}
+        <aside className="fl-aside" aria-label="Preview and post">
+          <div className="fl-preview">
+            <div className="fl-preview-label">
+              <span className="fl-live" aria-hidden="true" />
+              What people will see
+            </div>
+            <div className="fl-preview-media">
+              {previewImage ? <img src={previewImage} alt="" /> : isPreownedSale ? <Package size={44} /> : <Megaphone size={44} />}
+            </div>
+            <div className="fl-preview-body">
+              <div className="fl-preview-tags">
+                <span className="fl-preview-tag">{typeTag}</span>
+                {categoryLabel && <span className="fl-preview-tag is-muted">{categoryLabel}</span>}
+                {needsCondition && <span className="fl-preview-tag is-muted">{condition}</span>}
+                {isPreownedSale && availabilityStatus !== 'AVAILABLE' && (
+                  <span className="fl-preview-tag is-muted">{statusText[availabilityStatus]}</span>
+                )}
+              </div>
+              <h3 className={`fl-preview-title${title.trim() ? '' : ' is-empty'}`}>{title.trim() || 'Your title shows here'}</h3>
+              <p className={`fl-preview-desc${description.trim() ? '' : ' is-empty'}`}>
+                {description.trim() || 'Your description shows here, so people know exactly what you mean.'}
+              </p>
+              <div className="fl-preview-meta">
+                <span>
+                  <MapPin size={14} aria-hidden="true" /> {locationId ? generalArea : 'Your area'}
+                </span>
+                <span>
+                  <Clock size={14} aria-hidden="true" /> Just now
+                </span>
+                {priceText && <span className="fl-preview-price">{isPreownedSale ? priceText : `Budget ${priceText}`}</span>}
+              </div>
+            </div>
           </div>
-        )}
 
-        {/* Customer Privacy Consent Guarantee */}
-        <div style={{
-          background: '#f8fafc',
-          border: '1.5px solid #e2e8f0',
-          borderRadius: 10,
-          padding: '12px 16px',
-          marginBottom: 16,
-          display: 'flex',
-          gap: 12,
-          alignItems: 'flex-start'
-        }}>
-          <input
-            type="checkbox"
-            id="privacyConsent"
-            checked={shareAddressAgreed}
-            onChange={e => setShareAddressAgreed(e.target.checked)}
-            style={{ width: 18, height: 18, marginTop: 2, accentColor: 'var(--brand-purple)', cursor: 'pointer' }}
-          />
-          <label htmlFor="privacyConsent" style={{ fontSize: 12.5, color: '#334155', lineHeight: 1.5, cursor: 'pointer', margin: 0 }}>
-            <strong>Privacy Protection Guarantee:</strong> Only display my general location (e.g. <em>{generalArea || 'Adenike / LAUTECH Campus'}</em>) on public requests. My private contact details and precise address will remain protected and only be shared where I have explicitly agreed to connect with an approved provider.
-          </label>
-        </div>
+          <div className="fl-submit-bar pw-submit">
+            <div className="pw-progress" aria-label={`${doneCount} of 3 parts done`}>
+              {[step1Done, step2Done, step3Done].map((d, i) => (
+                <span key={i} className={d ? 'is-done' : ''} />
+              ))}
+            </div>
+            <button type="submit" className="fl-btn fl-btn-lime fl-btn-block" disabled={submitting}>
+              {submitting ? (
+                <>
+                  <span className="fl-spinner" aria-hidden="true" /> Publishing…
+                </>
+              ) : !isAuthenticated ? (
+                <>
+                  Sign in to {isPreownedSale ? 'publish' : 'post'} <ArrowRight size={18} />
+                </>
+              ) : (
+                <>
+                  {submitText} <ArrowRight size={18} />
+                </>
+              )}
+            </button>
+            <p className="fl-submit-note">
+              {doneCount === 3 ? (
+                <>
+                  <Check size={14} aria-hidden="true" /> All set. Free to post.
+                </>
+              ) : (
+                `${doneCount} of 3 parts done · Free to post`
+              )}
+            </p>
+          </div>
 
-        {/* Multi-Image Upload */}
-        <MultiImageUpload
-          label={
-            isPreownedSale
-              ? 'Item Photos (Up to 5 pictures of your item) 📷 *'
-              : 'Optional Photos (Sample design, broken item or reference picture)'
-          }
-          hint={
-            isPreownedSale
-              ? 'Clear photos from different angles help buyers decide faster.'
-              : 'Add photos so providers can see exactly what you need.'
-          }
-          maxImages={5}
-          value={images}
-          onChange={setImages}
-        />
-
-        <div className="form-group" style={{ marginTop: 14 }}>
-          <label>
-            {isPreownedSale ? 'Item Description & Details *' : 'Detailed Requirements *'}
-          </label>
-          <textarea
-            required
-            maxLength={2000}
-            placeholder={
-              isPreownedSale
-                ? 'Describe features, specifications, how long used, any defects, reason for selling, and delivery/pickup preferences...'
-                : isPreownedRequest
-                ? 'Describe the brand, model, acceptable condition, budget range, and when you need it...'
-                : isProduct
-                ? 'Specify the quantity, brand/specs, preferred condition, and delivery needs...'
-                : 'Give clear details about your request, desired turnaround time, model or room specifications...'
-            }
-            value={description}
-            onChange={e => setDescription(e.target.value)}
-            style={{ minHeight: 120 }}
-          />
-        </div>
-
-        <button
-          type="submit"
-          className="btn-lime"
-          style={{
-            width: '100%',
-            padding: '14px',
-            fontSize: 15,
-            fontWeight: 700,
-            marginTop: 8
-          }}
-          disabled={submitting}
-        >
-          {submitting
-            ? 'Publishing...'
-            : isPreownedSale
-            ? 'Publish Pre-owned Listing →'
-            : isPreownedRequest
-            ? 'Submit Used Item Request →'
-            : isProduct
-            ? 'Submit Product Request →'
-            : 'Post What I Need →'}
-        </button>
+          <div className="fl-how">
+            <h3 className="fl-how-title">What happens next</h3>
+            <ol>
+              {howSteps.map(([t, d], i) => (
+                <li key={t}>
+                  <b>{i + 1}</b>
+                  <span>
+                    <strong>{t}</strong>
+                    {d}
+                  </span>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </aside>
       </form>
     </section>
   );

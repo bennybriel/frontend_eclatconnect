@@ -1,0 +1,549 @@
+/* =====================================================================
+   Requests: what people need right now.
+   Builds on the directory page (DirectoryPage.css, "dx-" classes) and
+   adds the request card and the provider call-out.
+   ===================================================================== */
+
+.rq .dx-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ---------- Provider call-out ---------- */
+
+.rq-provider {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 6px 0 18px;
+  padding: 16px 18px;
+  border: 1px solid #e3f1c4;
+  border-radius: 20px;
+  background: linear-gradient(120deg, var(--brand-sage), #fff 75%);
+}
+
+.rq-provider-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  background: var(--brand-royal);
+  color: var(--brand-electric);
+}
+
+.rq-provider p {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+
+.rq-provider strong {
+  display: block;
+  font-size: 15.5px;
+  color: var(--brand-charcoal);
+}
+
+/* ---------- Grid and card ---------- */
+
+.rq-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@keyframes rq-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+
+.rq-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(30, 29, 27, 0.04), 0 8px 24px rgba(30, 29, 27, 0.05);
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+  animation: rq-in 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation-delay: calc(var(--dx-i, 0) * 50ms);
+}
+
+.rq-card:hover {
+  transform: translateY(-3px);
+  border-color: #d9c9e4;
+  box-shadow: 0 16px 36px rgba(76, 1, 106, 0.1);
+}
+
+.rq-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.rq-type {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: var(--brand-royal-tint);
+  color: var(--brand-royal);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.rq-type.is-product {
+  background: #e8f4ff;
+  color: #0b5394;
+}
+
+.rq-type.is-preowned_request {
+  background: #fff4dc;
+  color: #8a5a00;
+}
+
+.rq-time {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.rq-title {
+  display: -webkit-box;
+  margin: 2px 0 0;
+  overflow: hidden;
+  font-size: 17px;
+  font-weight: 800;
+  line-height: 1.3;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  word-break: break-word;
+}
+
+.rq-desc {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink-2);
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  word-break: break-word;
+}
+
+.rq-img {
+  display: block;
+  width: 100%;
+  height: 150px;
+  object-fit: cover;
+  border-radius: 14px;
+}
+
+.rq-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.rq-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #f4f2f6;
+  color: #3c3a40;
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.rq-meta svg {
+  color: var(--brand-royal);
+}
+
+.rq-money {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px dashed var(--line);
+}
+
+.rq-money-label {
+  display: block;
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+.rq-money-value {
+  display: block;
+  color: var(--brand-royal);
+  font-size: 20px;
+  font-weight: 900;
+}
+
+.rq-quotes {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: #e9f8ef;
+  color: #13794a;
+  font-size: 12.5px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.rq-quotes.is-first {
+  background: var(--brand-electric);
+  color: var(--brand-charcoal);
+}
+
+.rq-foot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 10px;
+  font-size: 12px;
+  color: var(--ink-2);
+}
+
+.rq-foot span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.rq-foot svg {
+  color: #13794a;
+}
+
+.rq .dx-btn.rq-cta,
+.rq button.dx-btn.rq-cta {
+  width: 100%;
+  justify-content: center;
+}
+
+.rq-note {
+  margin: 0;
+  padding: 10px;
+  border-radius: 12px;
+  background: #f4f2f6;
+  font-size: 12.5px;
+  text-align: center;
+  color: var(--ink-2);
+}
+
+/* Loading cards */
+.rq-skel {
+  min-height: 230px;
+}
+
+/* ---------- Phones ---------- */
+
+@media (max-width: 767px) {
+  .rq-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+  .rq-card {
+    padding: 16px;
+    border-radius: 20px;
+  }
+  .rq-provider {
+    flex-wrap: wrap;
+  }
+  .rq-provider .dx-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rq-card {
+    animation: none;
+  }
+}
+
+/* ---------- Whole card opens the request ---------- */
+
+.rq button.rq-open {
+  display: inline;
+  height: auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.rq button.rq-open:hover {
+  background: none;
+  color: var(--brand-royal);
+}
+
+.rq button.rq-open::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+}
+
+.rq button.rq-open:focus-visible {
+  outline: none;
+}
+
+.rq button.rq-open:focus-visible::after {
+  outline: 3px solid var(--brand-electric);
+  outline-offset: 2px;
+}
+
+.rq-card .rq-cta,
+.rq-card .rq-note {
+  position: relative;
+  z-index: 2;
+}
+
+.rq-urgent {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #fff1e6;
+  color: #b4400b;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+/* ---------- The request sheet ---------- */
+
+@keyframes rq-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes rq-pop {
+  from {
+    opacity: 0;
+    transform: translateY(24px) scale(0.98);
+  }
+}
+
+.rq-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(20, 0, 30, 0.55);
+  backdrop-filter: blur(3px);
+  animation: rq-fade 0.2s ease both;
+}
+
+.rq-sheet {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: min(620px, 100%);
+  max-height: min(88vh, 820px);
+  overflow-y: auto;
+  padding: 26px;
+  border-radius: 26px;
+  background: #fff;
+  box-shadow: 0 30px 80px rgba(20, 0, 30, 0.35);
+  outline: none;
+  animation: rq-pop 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.rq-sheet .rq-top {
+  padding-right: 48px;
+  justify-content: flex-start;
+}
+
+.rq button.rq-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border-radius: 50%;
+  background: #f2eff5;
+  color: var(--brand-charcoal);
+}
+
+.rq button.rq-close:hover {
+  background: var(--brand-royal);
+  color: #fff;
+}
+
+.rq-sheet-title {
+  margin: 0;
+  font-size: clamp(1.35rem, 2.4vw, 1.7rem);
+  font-weight: 900;
+  line-height: 1.2;
+  word-break: break-word;
+}
+
+.rq-sheet-when {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: -4px 0 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.rq-photos {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.rq-photos img {
+  flex: 0 0 auto;
+  width: 180px;
+  height: 140px;
+  object-fit: cover;
+  border-radius: 14px;
+}
+
+.rq-sheet-desc {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.6;
+  white-space: pre-line;
+  word-break: break-word;
+  color: #2c2a30;
+}
+
+.rq-sheet-money {
+  margin-top: 4px;
+}
+
+.rq-sheet-private {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: #e9f8ef;
+  color: #11502f;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.rq-sheet-private svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.rq-share {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.rq .rq-share-btn,
+.rq button.rq-share-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  height: 44px;
+  padding: 0 12px;
+  border: 1.5px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--brand-charcoal);
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.rq button.rq-share-btn:hover,
+.rq a.rq-share-btn:hover {
+  border-color: var(--brand-royal);
+  background: #fff;
+  color: var(--brand-royal);
+}
+
+.rq a.rq-share-btn.is-wa {
+  border-color: #0f7a43;
+  background: #0f7a43;
+  color: #fff;
+}
+
+.rq a.rq-share-btn.is-wa:hover {
+  background: #0b6236;
+  color: #fff;
+}
+
+@media (max-width: 767px) {
+  /* A bottom sheet on phones, above the bottom bar */
+  .rq-backdrop {
+    align-items: flex-end;
+    padding: 0;
+  }
+  .rq-sheet {
+    width: 100%;
+    max-height: 90vh;
+    padding: 22px 18px calc(22px + env(safe-area-inset-bottom, 0px));
+    border-radius: 26px 26px 0 0;
+    animation-name: rq-up;
+  }
+  @keyframes rq-up {
+    from {
+      transform: translateY(100%);
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rq-backdrop,
+  .rq-sheet {
+    animation: none;
+  }
+}
