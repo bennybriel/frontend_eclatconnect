@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   ArrowRight,
   BadgeCheck,
@@ -49,76 +49,114 @@ interface HomePageProps {
 // Content
 // ---------------------------------------------------------------------------
 
+/** Which part of the marketplace a browse tile counts and opens */
+type BrowseKey = 'businesses' | 'products' | 'artisans' | 'services' | 'preowned';
+
 interface BrowseTileConfig {
+  key: BrowseKey;
   title: string;
   badge: string;
   desc: string;
   icon: LucideIcon;
-  target: string;
-  theme: 'purple' | 'amber' | 'blue' | 'teal' | 'green' | 'lime';
+  /** Page the tile opens, and the section its quick links search in */
+  target: SearchScope;
+  /** Word used with the live count, e.g. "12 artisans" */
+  unit: [one: string, many: string];
+  /** Popular searches shown as quick links on the tile */
+  quick: string[];
 }
 
 const BROWSE_TILES: BrowseTileConfig[] = [
   {
+    key: 'businesses',
     title: 'Businesses',
-    badge: 'Shops & Brands',
-    desc: 'Local storefronts, retail shops & verified campus sellers',
+    badge: 'Shops & brands',
+    desc: 'Local storefronts, retail shops and verified campus sellers',
     icon: Store,
     target: 'Businesses',
-    theme: 'purple',
+    unit: ['business', 'businesses'],
+    quick: ['Supermarket', 'Pharmacy', 'Printing'],
   },
   {
+    key: 'products',
     title: 'Products',
-    badge: 'Buy New',
-    desc: 'Gadgets, fashion, provisions & brand-new merchandise',
+    badge: 'Buy new',
+    desc: 'Gadgets, fashion, provisions and brand-new merchandise',
     icon: ShoppingBag,
     target: 'Products',
-    theme: 'amber',
+    unit: ['product', 'products'],
+    quick: ['Phone charger', 'Textbooks', 'Shoes'],
   },
   {
+    key: 'artisans',
     title: 'Artisans',
-    badge: 'Skilled Trades',
-    desc: 'Tailors, stylists, electricians, plumbers & technicians',
+    badge: 'Skilled trades',
+    desc: 'Tailors, stylists, electricians, plumbers and technicians',
     icon: Hammer,
     target: 'Artisans',
-    theme: 'blue',
+    unit: ['artisan', 'artisans'],
+    quick: ['Tailor', 'Barber', 'Electrician'],
   },
   {
+    key: 'services',
     title: 'Services',
-    badge: 'Everyday Help',
-    desc: 'Laundry, repairs, logistics & campus deliveries',
+    badge: 'Everyday help',
+    desc: 'Laundry, repairs, logistics and campus deliveries',
     icon: Wrench,
     target: 'Services',
-    theme: 'teal',
+    unit: ['service', 'services'],
+    quick: ['Laundry', 'Phone repair', 'Delivery'],
   },
   {
+    key: 'preowned',
     title: 'Pre-owned',
-    badge: 'Student Deals',
-    desc: 'Gently used electronics, furniture, books & appliances',
+    badge: 'Student deals',
+    desc: 'Gently used electronics, furniture, books and appliances',
     icon: Recycle,
     target: 'Pre-owned',
-    theme: 'green',
-  },
-  {
-    title: 'Requests',
-    badge: 'Urgent Needs',
-    desc: 'See what people are looking for, or post what you need',
-    icon: Megaphone,
-    target: 'Requests',
-    theme: 'lime',
+    unit: ['item', 'items'],
+    quick: ['Used laptop', 'Fan', 'Mattress'],
   },
 ];
 
-const STEPS = [
+/** Shown on the Requests tile when there are no live requests yet; clearly labelled as examples */
+const EXAMPLE_REQUESTS = ['Laundry pickup this weekend', 'Cracked phone screen fix', 'A tailor for an event outfit'];
+
+/** "5m ago", "3h ago", "2d ago"; empty when the date is missing or invalid */
+const timeAgo = (raw?: string): string => {
+  const time = raw ? new Date(raw).getTime() : NaN;
+  if (!Number.isFinite(time)) return '';
+  const minutes = Math.max(1, Math.round((Date.now() - time) / 60000));
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.round(hours / 24);
+  return days < 30 ? `${days}d ago` : '';
+};
+
+/** Which browse tile a loaded item belongs to; null for customer requests */
+const browseKeyOf = (it: any): BrowseKey | null => {
+  if (it.request_type === 'PREOWNED_SALE') return 'preowned';
+  if (it.request_type) return null;
+  if (it.type === 'PROFESSIONAL') return 'artisans';
+  if (it.type === 'BUSINESS') return 'businesses';
+  if (it.kind === 'SERVICE') return 'services';
+  return 'products';
+};
+
+const STEPS: { title: string; text: string; icon: LucideIcon }[] = [
   {
+    icon: Megaphone,
     title: 'Search or post',
     text: 'Browse local listings, or post what you need and let providers come to you with quotes.',
   },
   {
+    icon: MessageCircle,
     title: 'Contact directly',
     text: 'Call or WhatsApp the seller or artisan yourself. No middleman and no platform fees.',
   },
   {
+    icon: BadgeCheck,
     title: 'Deal and review',
     text: 'Agree the price and details together, then leave a review to help the next person.',
   },
@@ -480,6 +518,111 @@ export const HomePage: React.FC<HomePageProps> = ({
     return list;
   }, [categories, uploadedItems, hubs]);
 
+  // Live counts and up to three listing photos for each browse tile, from the listings this page
+  // already loaded, plus the newest customer requests for the Requests tile
+  const browseData = React.useMemo(() => {
+    if (loadingListings) return null;
+    const counts: Record<BrowseKey, number> = { businesses: 0, products: 0, artisans: 0, services: 0, preowned: 0 };
+    const photos: Record<BrowseKey, string[]> = { businesses: [], products: [], artisans: [], services: [], preowned: [] };
+    const requests: any[] = [];
+    uploadedItems.forEach(it => {
+      const key = browseKeyOf(it);
+      if (!key) {
+        requests.push(it);
+        return;
+      }
+      counts[key] += 1;
+      if (it.image_url && photos[key].length < 3) photos[key].push(it.image_url);
+    });
+    const dateOf = (it: any) => new Date(it.created_at || it.createdAt || 0).getTime() || 0;
+    const latestRequests = requests.sort((a, b) => dateOf(b) - dateOf(a)).slice(0, 3);
+    return { counts, photos, latestRequests, requestCount: requests.length };
+  }, [loadingListings, uploadedItems]);
+
+  // The tiles rise in one after another the first time the section scrolls into view.
+  // Without JavaScript, or with reduced motion, they are simply shown.
+  const tilesRef = useRef<HTMLUListElement>(null);
+  useEffect(() => {
+    const el = tilesRef.current;
+    if (!el || typeof IntersectionObserver === 'undefined') return;
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+    el.classList.add('is-armed');
+    const observer = new IntersectionObserver(
+      entries => {
+        if (entries.some(e => e.isIntersecting)) {
+          el.classList.add('is-in');
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.15 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  // How many listings sit in each area, matched by area name
+  const hubCounts = React.useMemo(() => {
+    const counts: Record<string, number> = {};
+    uploadedItems.forEach(it => {
+      if (it.request_type && it.request_type !== 'PREOWNED_SALE') return;
+      const key = String(it.location || '').trim().toLowerCase();
+      if (key) counts[key] = (counts[key] || 0) + 1;
+    });
+    return counts;
+  }, [uploadedItems]);
+
+  // Short answers to what new visitors ask first; the areas come from the live list
+  const faqs = React.useMemo(() => {
+    const areaNames = hubs.map(h => h.area).filter(Boolean);
+    const areas = areaNames.length > 0 ? `, including ${areaNames.slice(0, 6).join(', ')}` : '';
+    return [
+      {
+        q: 'Is ECLAT CONNECT free to use?',
+        a: 'Yes. Browsing, posting what you need and listing your business are all free. There is no checkout and no payment fee: you pay the seller or artisan directly.',
+      },
+      {
+        q: 'How do I contact a seller or artisan?',
+        a: 'Open any listing and tap Call or WhatsApp. You talk to them directly and agree the price and details together.',
+      },
+      {
+        q: 'How do I post what I need?',
+        a: 'Tap "Post what I need", describe it and add your budget. Providers around you see your request and send you offers. Your exact address stays private.',
+      },
+      {
+        q: 'How do I list my business, skill or service?',
+        a: 'Tap "List your business free" and fill in a short profile. The ECLAT CONNECT team reviews it before it goes live, so customers can trust what they see.',
+      },
+      {
+        q: 'Where does ECLAT CONNECT work?',
+        a: `Around LAUTECH and across Ogbomoso${areas}. More areas are added as people join.`,
+      },
+      {
+        q: 'How do I stay safe?',
+        a: 'Meet in a public place, check the item or agree the job before you pay, and never send an advance "deposit" to someone you have not met. Report anything suspicious from the listing.',
+      },
+    ];
+  }, [hubs]);
+
+  // The launch band's sample cards deal in, fanning out, the first time they scroll into view
+  const launchRef = useRef<HTMLUListElement>(null);
+  useEffect(() => {
+    const el = launchRef.current;
+    if (!el || typeof IntersectionObserver === 'undefined') return;
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+    el.classList.add('is-armed');
+    const observer = new IntersectionObserver(
+      entries => {
+        if (entries.some(e => e.isIntersecting)) {
+          el.classList.add('is-in');
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.3 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [loadingListings, categorySections.length]);
+
   const heroStats = React.useMemo<HeroStats | null>(
     () => (liveCounts ? { ...liveCounts, areas: hubs.length } : null),
     [liveCounts, hubs.length]
@@ -498,36 +641,162 @@ export const HomePage: React.FC<HomePageProps> = ({
       {/* ================================================================ */}
       {/* Browse                                                           */}
       {/* ================================================================ */}
-      <section className="hx-section" aria-labelledby="hx-browse-title">
+      <section className="hx-section hx-frame hx-browse" aria-labelledby="hx-browse-title">
         <div className="hx-section-head">
           <div>
-            <p className="hx-eyebrow">Browse by Category</p>
+            <p className="hx-eyebrow">Browse by category</p>
             <h2 id="hx-browse-title" className="hx-h2">What are you looking for?</h2>
-            <p className="hx-section-note">Tap a category to explore verified listings near you</p>
+            <p className="hx-section-note">
+              Pick a category, tap a popular search, or post what you need and let providers come to you.
+            </p>
           </div>
         </div>
-        <div className="hx-tiles">
-          {BROWSE_TILES.map(tile => {
+
+        <ul className="hx-bento" ref={tilesRef}>
+          {/* Requests: the post-a-need path, drawn like a small hero, with the newest real requests */}
+          <li className="hx-bento-item hx-bento-requests" style={{ '--hx-i': 0 } as React.CSSProperties}>
+            <div className="hx-req">
+              <div className="hx-req-top">
+                <span className="hx-req-icon" aria-hidden="true"><Megaphone size={24} strokeWidth={2.2} /></span>
+                {browseData && browseData.requestCount > 0 && (
+                  <span className="hx-req-live">
+                    <span className="hx-req-live-dot" aria-hidden="true" />
+                    {browseData.requestCount} open {browseData.requestCount === 1 ? 'request' : 'requests'}
+                  </span>
+                )}
+              </div>
+              <h3 className="hx-req-title">
+                Need something? <span className="hx-script">Post it</span> and let providers come to you.
+              </h3>
+
+              {browseData && browseData.latestRequests.length > 0 ? (
+                <>
+                  <p className="hx-req-label">Latest requests</p>
+                  <ul className="hx-req-list">
+                    {browseData.latestRequests.map((req, i) => {
+                      const meta = [req.location, req.price ? `Budget ₦${Number(req.price).toLocaleString()}` : '', timeAgo(req.created_at || req.createdAt)]
+                        .filter(Boolean)
+                        .join(' · ');
+                      return (
+                        <li key={req.id ?? i} className="hx-req-row" style={{ '--hx-j': i } as React.CSSProperties}>
+                          <span className="hx-req-row-title">{req.name}</span>
+                          {meta && <span className="hx-req-row-meta">{meta}</span>}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </>
+              ) : (
+                <>
+                  <p className="hx-req-label">For example</p>
+                  <ul className="hx-req-list">
+                    {EXAMPLE_REQUESTS.map((text, i) => (
+                      <li key={text} className="hx-req-row is-example" style={{ '--hx-j': i } as React.CSSProperties}>
+                        <span className="hx-req-row-title">“{text}”</span>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+
+              <ol className="hx-req-steps" aria-label="How requests work">
+                <li>
+                  <span className="hx-req-step-num" aria-hidden="true">1</span>
+                  <span><strong>Post your need</strong> Say what you need and your budget</span>
+                </li>
+                <li>
+                  <span className="hx-req-step-num" aria-hidden="true">2</span>
+                  <span><strong>Get offers</strong> Providers nearby send you a quote</span>
+                </li>
+                <li>
+                  <span className="hx-req-step-num" aria-hidden="true">3</span>
+                  <span><strong>Chat on WhatsApp</strong> Agree the price and details directly</span>
+                </li>
+              </ol>
+
+              <div className="hx-req-actions">
+                <button type="button" className="hx-req-post" onClick={() => onNavigate('Post What I Need')}>
+                  <Megaphone size={16} strokeWidth={2.4} aria-hidden="true" /> Post what I need
+                </button>
+                <button type="button" className="hx-req-all" onClick={() => onNavigate('Requests')}>
+                  See all requests <ArrowRight size={15} aria-hidden="true" />
+                </button>
+              </div>
+            </div>
+          </li>
+
+          {BROWSE_TILES.map((tile, i) => {
             const Icon = tile.icon;
+            const count = browseData?.counts[tile.key] ?? 0;
+            const photos = browseData?.photos[tile.key] ?? [];
+            const countText = count > 0 ? `${count} ${count === 1 ? tile.unit[0] : tile.unit[1]}` : null;
             return (
-              <button
-                key={tile.title}
-                type="button"
-                className={`hx-tile hx-tile-${tile.theme}`}
-                onClick={() => onNavigate(tile.target)}
-                aria-label={`Browse ${tile.title}: ${tile.desc}`}
-              >
-                <span className="hx-tile-badge">{tile.badge}</span>
-                <span className="hx-tile-icon"><Icon size={26} strokeWidth={2} aria-hidden="true" /></span>
-                <span className="hx-tile-title">{tile.title}</span>
-                <span className="hx-tile-desc">{tile.desc}</span>
-                <span className="hx-tile-cta">
-                  Explore <ArrowRight size={14} aria-hidden="true" />
-                </span>
-              </button>
+              <li key={tile.key} className="hx-bento-item" style={{ '--hx-i': i + 1 } as React.CSSProperties}>
+                <div className="hx-tile">
+                  <div className="hx-tile-top">
+                    <span className="hx-tile-icon" aria-hidden="true"><Icon size={24} strokeWidth={2} /></span>
+                    {photos.length > 0 ? (
+                      <span className="hx-tile-photos" aria-hidden="true">
+                        {photos.map(src => (
+                          <img key={src} src={src} alt="" loading="lazy" decoding="async" />
+                        ))}
+                      </span>
+                    ) : (
+                      <span className="hx-tile-badge">{tile.badge}</span>
+                    )}
+                  </div>
+                  <h3 className="hx-tile-title">
+                    {/* The title's button covers the whole tile, so a tap anywhere opens the category */}
+                    <button type="button" className="hx-tile-link" onClick={() => onNavigate(tile.target)}>
+                      {tile.title}
+                    </button>
+                  </h3>
+                  <p className="hx-tile-desc">{tile.desc}</p>
+                  <div className="hx-tile-quick" aria-label={`Popular in ${tile.title}`}>
+                    {tile.quick.map(q => (
+                      <button key={q} type="button" className="hx-tile-chip" onClick={() => runSearch(q, tile.target, '')}>
+                        {q}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="hx-tile-foot">
+                    <span className="hx-tile-count">
+                      {countText ? (
+                        <>
+                          <span className="hx-tile-dot" aria-hidden="true" />
+                          {countText}
+                        </>
+                      ) : (
+                        'Explore'
+                      )}
+                    </span>
+                    <span className="hx-tile-go" aria-hidden="true"><ArrowRight size={16} strokeWidth={2.4} /></span>
+                  </div>
+                </div>
+              </li>
             );
           })}
-        </div>
+
+          {/* The other side of the marketplace: people who sell or offer a service */}
+          <li className="hx-bento-item hx-bento-list" style={{ '--hx-i': BROWSE_TILES.length + 1 } as React.CSSProperties}>
+            <div className="hx-tile hx-tile-list">
+              <div className="hx-tile-top">
+                <span className="hx-tile-icon" aria-hidden="true"><BadgeCheck size={24} strokeWidth={2} /></span>
+                <span className="hx-tile-badge">Free</span>
+              </div>
+              <h3 className="hx-tile-title">
+                <button type="button" className="hx-tile-link" onClick={() => onNavigate('Provider Application')}>
+                  Sell or offer a service?
+                </button>
+              </h3>
+              <p className="hx-tile-desc">List your business, skill or service free and get found by students and residents.</p>
+              <div className="hx-tile-foot">
+                <span className="hx-tile-count">List it free</span>
+                <span className="hx-tile-go" aria-hidden="true"><ArrowRight size={16} strokeWidth={2.4} /></span>
+              </div>
+            </div>
+          </li>
+        </ul>
       </section>
 
       {/* ================================================================ */}
@@ -544,18 +813,44 @@ export const HomePage: React.FC<HomePageProps> = ({
         {loadingListings && <DirectoryCardsSkeleton count={4} />}
 
         {!loadingListings && categorySections.length === 0 && (
-          <div className="hx-empty">
-            <span className="hx-empty-icon"><Store size={26} aria-hidden="true" /></span>
-            <div className="hx-empty-text">
-              <h3>No listings yet. Be one of the first.</h3>
-              <p>
-                We're welcoming the first local businesses, artisans and sellers around LAUTECH and Ogbomoso.
-                Their listings will appear here as soon as they are approved.
+          /* No approved listings yet: an honest launch message instead of an empty strip */
+          <div className="hx-launch">
+            <div className="hx-launch-text">
+              <p className="hx-launch-kicker">
+                <span className="hx-launch-dot" aria-hidden="true" /> Just launching
               </p>
+              <h3 className="hx-launch-title">
+                The first listings around LAUTECH are <span className="hx-script">on their way.</span>
+              </h3>
+              <p className="hx-launch-note">
+                Local businesses, artisans and sellers are joining now. Their listings appear here as soon as the
+                ECLAT CONNECT team approves them. Be one of the first to be found.
+              </p>
+              <div className="hx-launch-actions">
+                <button type="button" className="hx-btn hx-btn-primary" onClick={() => onNavigate('Provider Application')}>
+                  Be the first to list <ArrowRight size={18} aria-hidden="true" />
+                </button>
+                <button type="button" className="hx-launch-secondary" onClick={() => onNavigate('Post What I Need')}>
+                  Or post what you need
+                </button>
+              </div>
             </div>
-            <button type="button" className="hx-btn hx-btn-primary" onClick={() => onNavigate('Provider Application')}>
-              List your business free
-            </button>
+            {/* Three sample cards show where listings will appear; they are clearly placeholders */}
+            <ul className="hx-launch-cards" aria-hidden="true" ref={launchRef}>
+              {[
+                { icon: Store, label: 'Your shop here', meta: 'Businesses' },
+                { icon: Hammer, label: 'Your skill here', meta: 'Artisans' },
+                { icon: Recycle, label: 'Your item here', meta: 'Pre-owned' },
+              ].map(({ icon: CardIcon, label, meta }, i) => (
+                <li key={label} className="hx-launch-card" style={{ '--hx-k': i } as React.CSSProperties}>
+                  <span className="hx-launch-card-tick"><BadgeCheck size={14} strokeWidth={2.6} /> Listed</span>
+                  <span className="hx-launch-card-img"><CardIcon size={28} strokeWidth={1.8} /></span>
+                  <span className="hx-launch-card-title">{label}</span>
+                  <span className="hx-launch-card-meta">{meta}</span>
+                  <span className="hx-launch-card-bar" />
+                </li>
+              ))}
+            </ul>
           </div>
         )}
 
@@ -610,57 +905,49 @@ export const HomePage: React.FC<HomePageProps> = ({
       </section>
 
       {/* ================================================================ */}
-      {/* Two ways in: post a request / sell a used item                   */}
+      {/* How it works, with staying safe beside it                        */}
       {/* ================================================================ */}
-      <section className="hx-section hx-paths" aria-label="Post or sell">
-        <div className="hx-path hx-path-sage">
-          <Megaphone className="hx-path-icon" size={28} aria-hidden="true" />
-          <h2 className="hx-h2">Can't find it? Post what you need.</h2>
-          <p>
-            Describe what you're looking for and your budget. Providers around you can see your request and send you a quote.
-            Your exact address stays private.
-          </p>
-          <button type="button" className="hx-btn hx-btn-primary" onClick={() => onNavigate('Post What I Need')}>
-            Post what I need <ArrowRight size={18} aria-hidden="true" />
-          </button>
-        </div>
-        <div className="hx-path hx-path-plain">
-          <Recycle className="hx-path-icon" size={28} aria-hidden="true" />
-          <h2 className="hx-h2">Selling something you no longer use?</h2>
-          <p>
-            Fans, gas cylinders, laptops, textbooks. Post your used item with photos and a price, and buyers nearby can reach you directly.
-          </p>
-          <button type="button" className="hx-btn hx-btn-outline" onClick={() => onNavigate('Sell Pre-owned Item')}>
-            Sell a pre-owned item
-          </button>
-        </div>
-      </section>
-
-      {/* ================================================================ */}
-      {/* How it works                                                     */}
-      {/* ================================================================ */}
-      <section className="hx-section" aria-labelledby="hx-how-title">
+      <section className="hx-section hx-how" aria-labelledby="hx-how-title">
         <div className="hx-section-head">
           <div>
             <p className="hx-eyebrow">How it works</p>
             <h2 id="hx-how-title" className="hx-h2">Three steps, no middleman</h2>
           </div>
         </div>
-        <ol className="hx-steps">
-          {STEPS.map((step, i) => (
-            <li key={step.title} className="hx-step">
-              <span className="hx-step-num" aria-hidden="true">{i + 1}</span>
-              <div>
-                <h3 className="hx-h3">{step.title}</h3>
-                <p>{step.text}</p>
-              </div>
-            </li>
-          ))}
-        </ol>
+        <div className="hx-how-grid">
+          <ol className="hx-steps">
+            {STEPS.map((step, i) => {
+              const StepIcon = step.icon;
+              return (
+                <li key={step.title} className="hx-step">
+                  <span className="hx-step-num" aria-hidden="true">{i + 1}</span>
+                  <span className="hx-step-icon" aria-hidden="true"><StepIcon size={22} strokeWidth={2} /></span>
+                  <h3 className="hx-h3">{step.title}</h3>
+                  <p>{step.text}</p>
+                </li>
+              );
+            })}
+          </ol>
+          <aside className="hx-safe" aria-labelledby="hx-safety-title">
+            <span className="hx-safe-icon" aria-hidden="true"><ShieldCheck size={24} /></span>
+            <h3 id="hx-safety-title" className="hx-safe-title">Deal safely</h3>
+            <p className="hx-safe-note">
+              ECLAT CONNECT doesn't handle payments, so you agree every deal directly. A few habits keep it safe.
+            </p>
+            <ul className="hx-safe-list">
+              {SAFETY_TIPS.map(tip => (
+                <li key={tip}>
+                  <BadgeCheck size={18} aria-hidden="true" />
+                  <span>{tip}</span>
+                </li>
+              ))}
+            </ul>
+          </aside>
+        </div>
       </section>
 
       {/* ================================================================ */}
-      {/* Hubs                                                             */}
+      {/* Areas                                                            */}
       {/* ================================================================ */}
       {hubs.length > 0 && (
         <section className="hx-section" aria-labelledby="hx-hubs-title">
@@ -669,38 +956,68 @@ export const HomePage: React.FC<HomePageProps> = ({
               <p className="hx-eyebrow">Areas</p>
               <h2 id="hx-hubs-title" className="hx-h2">Around campus and town</h2>
             </div>
-            <p className="hx-section-note">Pick an area to see the businesses there.</p>
+            <p className="hx-section-note">Pick an area to see who's there.</p>
           </div>
           <div className="hx-hubs">
-            {hubs.map(loc => (
-              <button key={loc.id} type="button" className="hx-hub" onClick={() => openHub(loc)}>
-                <MapPin size={18} aria-hidden="true" />
-                <span className="hx-hub-text">
-                  <span className="hx-hub-name">{loc.area}</span>
-                  {loc.landmark && <span className="hx-hub-landmark">{loc.landmark}</span>}
-                </span>
-              </button>
-            ))}
+            {hubs.map(loc => {
+              const count = hubCounts[(loc.area || '').trim().toLowerCase()] || 0;
+              return (
+                <button key={loc.id} type="button" className="hx-hub" onClick={() => openHub(loc)}>
+                  <span className="hx-hub-pin" aria-hidden="true"><MapPin size={18} /></span>
+                  <span className="hx-hub-text">
+                    <span className="hx-hub-name">{loc.area}</span>
+                    {loc.landmark && <span className="hx-hub-landmark">{loc.landmark}</span>}
+                  </span>
+                  {count > 0 && (
+                    <span className="hx-hub-count">
+                      {count} {count === 1 ? 'listing' : 'listings'}
+                    </span>
+                  )}
+                  <ArrowRight className="hx-hub-arrow" size={16} aria-hidden="true" />
+                </button>
+              );
+            })}
           </div>
         </section>
       )}
 
       {/* ================================================================ */}
-      {/* Safety                                                           */}
+      {/* Questions                                                        */}
       {/* ================================================================ */}
-      <section className="hx-section hx-safety" aria-labelledby="hx-safety-title">
-        <div className="hx-safety-head">
-          <span className="hx-safety-icon"><ShieldCheck size={26} aria-hidden="true" /></span>
-          <div>
-            <h2 id="hx-safety-title" className="hx-h2">Deal safely</h2>
-            <p>ECLAT CONNECT doesn't handle payments, so you agree every deal directly. A few habits keep it safe.</p>
-          </div>
+      <section className="hx-section hx-faq" aria-labelledby="hx-faq-title">
+        <div className="hx-faq-head">
+          <p className="hx-eyebrow">Questions</p>
+          <h2 id="hx-faq-title" className="hx-h2">Good to know</h2>
+          <p className="hx-section-note">
+            Still unsure? Write to <a href="mailto:support@eclatconnect.com">support@eclatconnect.com</a>.
+          </p>
         </div>
-        <ul className="hx-safety-list">
-          {SAFETY_TIPS.map(tip => (
-            <li key={tip}>{tip}</li>
+        <div className="hx-faq-list">
+          {faqs.map((item, i) => (
+            <details key={item.q} className="hx-faq-item" open={i === 0}>
+              <summary>
+                <span>{item.q}</span>
+                <span className="hx-faq-plus" aria-hidden="true" />
+              </summary>
+              <p>{item.a}</p>
+            </details>
           ))}
-        </ul>
+        </div>
+        {/* Lets search engines show these answers directly in results */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              '@context': 'https://schema.org',
+              '@type': 'FAQPage',
+              mainEntity: faqs.map(item => ({
+                '@type': 'Question',
+                name: item.q,
+                acceptedAnswer: { '@type': 'Answer', text: item.a },
+              })),
+            }),
+          }}
+        />
       </section>
 
       {/* ================================================================ */}
