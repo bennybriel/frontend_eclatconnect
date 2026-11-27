@@ -17,6 +17,7 @@ import { RequestsPage } from './pages/RequestsPage';
 import { PostRequestPage, RETURN_TO_KEY } from './pages/PostRequestPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { FILTER_PAGES, NOT_FOUND, buildUrl, filtersFrom, pageFor, pathFor, sectionPageFor, titleFor } from './routing';
+import { recordRecent } from './utils/recent';
 
 // Modals
 import { ListingDetailsModal } from './pages/ListingDetailsModal';
@@ -297,9 +298,11 @@ export const App: React.FC = () => {
     loadCatalogData({ q: '', location_id: '', category_id: '' });
   };
 
+  // Also reload once sign-in is confirmed: personal pages (workspace, my requests…) skip loading
+  // until then, so opening or refreshing them directly would otherwise leave them empty
   useEffect(() => {
     loadCatalogData();
-  }, [page, locationFilter, categoryFilter]);
+  }, [page, locationFilter, categoryFilter, isAuthenticated]);
 
   // Account activation links (?activate=TOKEN) open the sign-in page once the account is active
   useEffect(() => {
@@ -369,6 +372,11 @@ export const App: React.FC = () => {
   const pendingOpenId = useRef<string | null>(new URLSearchParams(window.location.search).get('open'));
   useEffect(() => {
     const id = pendingOpenId.current;
+    // Requests open in their own sheet on the Requests page (/requests?open=<id>)
+    if (page === 'Requests') {
+      pendingOpenId.current = null;
+      return;
+    }
     if (!id || loadingCatalog || items.length === 0) return;
     const found = items.find(it => String(it.id) === id);
     if (found) setSelectedItem(found);
@@ -378,6 +386,7 @@ export const App: React.FC = () => {
   /** Opens a listing and gives it its own address, so it can be shared and Back closes it */
   const openItem = (item: any) => {
     setSelectedItem(item);
+    recordRecent(item);
     if (!item?.id) return;
     const section = sectionPageFor(item);
     const keepFilters = pathFor(section) === pathFor(page);
@@ -433,16 +442,21 @@ export const App: React.FC = () => {
     }
   };
 
+  // The vendor and artisan dashboard has its own sidebar, top bar and phone tab bar
+  const isPortalPage = page === 'Vendor Workspace' || page === 'Vendor Dashboard';
+
   return (
     <>
+      {!isPortalPage && (
       <Header
         currentPage={page}
         onNavigate={handleNavigate}
         onSearch={handleHeaderSearch}
         unreadCount={unreadCount}
       />
+      )}
 
-      <main className="main-content">
+      <main className={isPortalPage ? 'main-content is-portal' : 'main-content'}>
         <Toast notice={notice} onClose={() => setNotice(null)} />
 
         <Suspense
@@ -591,6 +605,7 @@ export const App: React.FC = () => {
             categories={categories}
             locations={locations}
             unreadCount={unreadCount}
+            notifications={notifications}
             onRefresh={() => {
               refreshUserData();
               loadCatalogData();
@@ -713,6 +728,8 @@ export const App: React.FC = () => {
           item={selectedItem}
           isFavorite={selectedItem ? Boolean(favoritesMap[selectedItem.id] || favoritesMap[selectedItem.item_id]) : false}
           onToggleFavorite={handleToggleFavorite}
+          related={items.filter(it => sectionPageFor(it) === sectionPageFor(selectedItem))}
+          onSelectRelated={openItem}
           onClose={closeItem}
           onReport={item => {
             closeItem();
@@ -779,7 +796,7 @@ export const App: React.FC = () => {
       )}
 
       {/* Docked Mobile Bottom Navigation Bar (Visible on mobile viewports) */}
-      <MobileBottomNav currentPage={page} onNavigate={handleNavigate} />
+      {!isPortalPage && <MobileBottomNav currentPage={page} onNavigate={handleNavigate} />}
     </>
   );
 };

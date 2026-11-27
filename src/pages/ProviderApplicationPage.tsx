@@ -4,6 +4,8 @@ import { request } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { ImageUpload } from '../components/ImageUpload';
 import { CategorySelect } from '../components/CategorySelect';
+import { ArrowLeft, ArrowRight, BadgeCheck, MailCheck, Megaphone, Store, UserPlus, Users, Wallet } from 'lucide-react';
+import '../styles/flows.css';
 
 interface ProviderApplicationPageProps {
   categories: Category[];
@@ -95,21 +97,85 @@ export const ProviderApplicationPage: React.FC<ProviderApplicationPageProps> = (
   };
 
   if (!user) {
+    const steps = [
+      { icon: <UserPlus size={20} />, title: 'Create your account', text: 'Choose Vendor for a shop or store, or Artisan for a skill or trade. It is free.' },
+      { icon: <MailCheck size={20} />, title: 'Activate by email', text: 'Open the link we send to your email to switch your account on.' },
+      { icon: <Store size={20} />, title: 'Set up your profile', text: 'Add your name, area, photos, phone and what you offer.' },
+      { icon: <BadgeCheck size={20} />, title: 'Get found', text: 'Once approved, students and residents can find you and reach out.' },
+    ];
     return (
-      <section className="form-panel" style={{ textAlign: 'center', padding: '48px 24px', maxWidth: 600, margin: '40px auto' }}>
-        <div style={{ fontSize: 48, marginBottom: 16 }}>🏪</div>
-        <h2 style={{ color: 'var(--primary)', marginBottom: 12 }}>List your business or trade on ECLAT CONNECT</h2>
-        <p style={{ color: 'var(--text-muted)', fontSize: 14.5, lineHeight: 1.6, marginBottom: 24 }}>
-          First create a free <strong>Vendor</strong> or <strong>Artisan</strong> account and activate it from your email.
-          After you sign in, your workspace will guide you through setting up your profile.
-        </p>
-        <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
-          <button className="btn-lime" onClick={() => onNavigate('Auth')}>
-            Create account or sign in →
+      <section className="fl" aria-labelledby="fl-provider-title">
+        <header className="fl-head">
+          <button type="button" className="fl-back" onClick={() => onNavigate('Home')}>
+            <ArrowLeft size={16} /> Back to marketplace
           </button>
-          <button className="btn-outline" onClick={() => onNavigate('Home')}>
-            Back to marketplace
-          </button>
+          <div className="fl-land-head">
+            <div>
+              <span className="fl-brand-kicker">For businesses and artisans</span>
+              <h1 className="fl-head-title" id="fl-provider-title">
+                Grow your business with <span style={{ color: 'var(--brand-electric)' }}>ECLAT CONNECT</span>
+              </h1>
+              <p className="fl-head-note">
+                Put your shop, store or trade in front of students and residents around LAUTECH and Ogbomoso. Get a
+                business profile, show what you sell and get requests from people nearby.
+              </p>
+              <div className="fl-land-actions">
+                <button type="button" className="fl-btn fl-btn-lime" onClick={() => onNavigate('Auth')}>
+                  Create a free account <ArrowRight size={18} />
+                </button>
+                <button type="button" className="fl-btn fl-btn-ghost" onClick={() => onNavigate('Auth')}>
+                  I already have an account
+                </button>
+              </div>
+            </div>
+            <div className="fl-stats">
+              <div className="fl-stat">
+                <Users size={22} aria-hidden="true" />
+                <strong>Customers near you</strong>
+                <span>Students and residents searching every day.</span>
+              </div>
+              <div className="fl-stat">
+                <Megaphone size={22} aria-hidden="true" />
+                <strong>Requests come to you</strong>
+                <span>See what people need and send a quote.</span>
+              </div>
+              <div className="fl-stat">
+                <BadgeCheck size={22} aria-hidden="true" />
+                <strong>A verified badge</strong>
+                <span>Approved profiles earn more trust.</span>
+              </div>
+              <div className="fl-stat">
+                <Wallet size={22} aria-hidden="true" />
+                <strong>Free to join</strong>
+                <span>List your business at no cost.</span>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <div className="fl-section">
+          <h2 className="fl-section-title">How to get listed</h2>
+          <p className="fl-section-sub">Four quick steps. Most people finish in a few minutes.</p>
+          <ol className="fl-timeline">
+            {steps.map((s, i) => (
+              <li key={s.title} style={{ '--fl-i': i } as React.CSSProperties}>
+                <span className="fl-timeline-step" aria-hidden="true">{i + 1}</span>
+                <span className="fl-timeline-num" aria-hidden="true">{s.icon}</span>
+                <h3>{s.title}</h3>
+                <p>{s.text}</p>
+              </li>
+            ))}
+          </ol>
+
+          <div className="fl-cta">
+            <p>
+              <strong>Ready to be found?</strong>
+              Create your Vendor or Artisan account and set up your profile today.
+            </p>
+            <button type="button" className="fl-btn fl-btn-royal" onClick={() => onNavigate('Auth')}>
+              Get started <ArrowRight size={18} />
+            </button>
+          </div>
         </div>
       </section>
     );

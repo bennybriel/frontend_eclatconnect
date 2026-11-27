@@ -692,6 +692,439 @@
   margin-top: 14px;
 }
 
+/* ---------- Card share button (next to the heart) ---------- */
+
+.dx button.dx-card-share {
+  position: absolute;
+  z-index: 2;
+  top: 10px;
+  right: 54px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.94);
+  color: var(--brand-charcoal);
+  box-shadow: 0 4px 12px rgba(30, 29, 27, 0.16);
+  transition: transform 0.25s cubic-bezier(0.3, 1.6, 0.5, 1), color 0.2s ease, background-color 0.2s ease;
+}
+
+.dx button.dx-card-share:hover {
+  background: #fff;
+  color: var(--brand-royal);
+  transform: scale(1.1);
+}
+
+.dx button.dx-card-share.is-done {
+  background: var(--brand-electric);
+  color: var(--brand-charcoal);
+}
+
+/* ---------- Area chips ---------- */
+
+.dx-chips-areas {
+  align-items: center;
+  margin-top: 12px;
+}
+
+.dx-chips-label {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 5px;
+  margin-right: 2px;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--brand-royal);
+}
+
+.dx button.dx-chip-area {
+  height: 34px;
+  padding: 0 14px;
+  border-style: dashed;
+  font-size: 13px;
+}
+
+.dx button.dx-chip-area.is-on {
+  border-style: solid;
+}
+
+/* ---------- Strips: recently viewed and spotlight ---------- */
+
+.dx-strip {
+  margin-top: 28px;
+}
+
+.dx-strip-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.dx-strip-head h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.dx-strip-head h2 svg {
+  color: var(--brand-royal);
+}
+
+.dx button.dx-strip-clear {
+  height: auto;
+  padding: 4px 8px;
+  background: none;
+  color: var(--ink-2);
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.dx button.dx-strip-clear:hover {
+  background: none;
+  color: var(--brand-royal);
+}
+
+.dx-recent {
+  display: flex;
+  gap: 10px;
+  margin: 0;
+  padding: 2px 2px 8px;
+  overflow-x: auto;
+  list-style: none;
+  scrollbar-width: none;
+}
+
+.dx-recent::-webkit-scrollbar {
+  display: none;
+}
+
+.dx button.dx-recent-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 240px;
+  height: auto;
+  padding: 8px 12px 8px 8px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: #fff;
+  color: var(--brand-charcoal);
+  text-align: left;
+  transition: border-color 0.2s ease, transform 0.2s ease;
+}
+
+.dx button.dx-recent-item:hover {
+  background: #fff;
+  color: var(--brand-charcoal);
+  border-color: var(--brand-royal);
+  transform: translateY(-2px);
+}
+
+.dx-recent-media {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  overflow: hidden;
+  border-radius: 12px;
+  background: var(--brand-royal);
+  color: var(--brand-electric);
+  font-size: 20px;
+  font-weight: 900;
+}
+
+.dx-recent-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.dx-recent-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.dx-recent-name,
+.dx-recent-meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dx-recent-name {
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.dx-recent-meta {
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+
+/* Spotlight: a purple band with a sideways row of cards */
+.dx-spotlight {
+  padding: 22px 22px 14px;
+  border-radius: 26px;
+  background:
+    radial-gradient(circle at 96% 0%, rgba(243, 254, 214, 0.08) 0 160px, transparent 161px),
+    var(--brand-royal);
+}
+
+.dx-spotlight .dx-strip-head h2 {
+  color: #fff;
+}
+
+.dx-spotlight .dx-strip-head h2 svg {
+  color: var(--brand-electric);
+}
+
+.dx-spot-row {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(250px, 280px);
+  gap: 14px;
+  margin: 0;
+  padding: 2px 2px 10px;
+  overflow-x: auto;
+  list-style: none;
+  scrollbar-width: none;
+}
+
+.dx-spot-row::-webkit-scrollbar {
+  display: none;
+}
+
+.dx-spotlight .dx-card {
+  border-color: transparent;
+}
+
+.dx-spotlight .dx-card:hover {
+  border-color: var(--brand-electric);
+}
+
+/* Inside the purple band, letter tiles turn lime so they stand out */
+.dx-spotlight .dx-card-initial {
+  background:
+    radial-gradient(circle at 85% 10%, rgba(76, 1, 106, 0.08) 0 70px, transparent 71px),
+    radial-gradient(circle at 85% 10%, #d4fb6a 0 110px, transparent 111px),
+    var(--brand-electric);
+  color: var(--brand-royal);
+}
+
+/* ---------- Toolbar: count and view ---------- */
+
+.dx-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 28px;
+}
+
+.dx-toolbar-count {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.dx-toolbar-count span {
+  color: var(--ink-2);
+  font-weight: 600;
+}
+
+.dx-view {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+}
+
+.dx .dx-view button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 34px;
+  padding: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink-2);
+}
+
+.dx .dx-view button:hover {
+  background: var(--brand-royal-tint);
+  color: var(--brand-royal);
+}
+
+.dx .dx-view button.is-on {
+  background: var(--brand-royal);
+  color: var(--brand-electric);
+}
+
+.dx-toolbar + .dx-grid {
+  margin-top: 14px;
+}
+
+/* ---------- List view: photo on the left, details on the right ---------- */
+
+.dx-grid.is-list {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 520px), 1fr));
+}
+
+.dx-grid.is-list .dx-card {
+  flex-direction: row;
+}
+
+.dx-grid.is-list .dx-card-media {
+  flex-shrink: 0;
+  width: 38%;
+  max-width: 220px;
+  height: auto;
+  min-height: 170px;
+}
+
+.dx-grid.is-list .dx-card-initial {
+  font-size: 48px;
+}
+
+.dx-grid.is-list .dx-card-body {
+  padding: 14px 16px;
+}
+
+/* ---------- Show more ---------- */
+
+.dx-more {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-top: 28px;
+}
+
+.dx-more p {
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+/* ---------- Loading skeletons in the brand's colours ---------- */
+
+.dx-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 0 0 16px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  background: #fff;
+}
+
+.dx-skel-media,
+.dx-skel-line,
+.dx-skel-btn {
+  display: block;
+  border-radius: 10px;
+  background: linear-gradient(100deg, #f1ecf4 30%, #faf7fc 50%, #f1ecf4 70%);
+  background-size: 300% 100%;
+  animation: dx-shimmer 1.4s ease-in-out infinite;
+  animation-delay: calc(var(--dx-i, 0) * 80ms);
+}
+
+.dx-skel-media {
+  height: 168px;
+  border-radius: 0;
+}
+
+.dx-skel-line {
+  height: 14px;
+  margin: 0 16px;
+}
+
+.dx-skel-line.is-short {
+  width: 30%;
+  margin-top: 6px;
+}
+
+.dx-skel-line.is-mid {
+  width: 60%;
+}
+
+.dx-skel-btn {
+  height: 40px;
+  margin: 6px 16px 0;
+  border-radius: 999px;
+}
+
+@keyframes dx-shimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: 0 0;
+  }
+}
+
+/* ---------- Sticky filter bar on wide screens ---------- */
+
+@media (min-width: 768px) {
+  .dx-filters {
+    position: sticky;
+    top: 84px;
+  }
+}
+
+/* ---------- Phones ---------- */
+
+@media (max-width: 767px) {
+  .dx-grid.is-list .dx-card-media {
+    width: 120px;
+    min-height: 0;
+  }
+  .dx-grid.is-list .dx-card-desc {
+    display: none;
+  }
+  .dx-grid.is-list .dx-card-body {
+    padding: 12px;
+  }
+  .dx-spotlight {
+    margin-left: calc(-1 * var(--site-gutter));
+    margin-right: calc(-1 * var(--site-gutter));
+    padding: 18px var(--site-gutter) 10px;
+    border-radius: 0;
+  }
+  .dx-spot-row {
+    grid-auto-columns: 78%;
+  }
+  .dx-chips-areas {
+    margin-top: 10px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dx-skel-media,
+  .dx-skel-line,
+  .dx-skel-btn {
+    animation: none !important;
+  }
+}
+
 /* ---------- Empty states ---------- */
 
 .dx-empty {

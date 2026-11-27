@@ -327,7 +327,9 @@
 }
 
 .nv button.nv-menu-item,
-.nv-drawer button.nv-drawer-item {
+.nv-drawer button.nv-drawer-item,
+.nv-drawer a.nv-drawer-item {
+  text-decoration: none;
   display: flex;
   align-items: center;
   justify-content: flex-start;
@@ -343,20 +345,23 @@
 }
 
 .nv button.nv-menu-item svg,
-.nv-drawer button.nv-drawer-item svg {
+.nv-drawer button.nv-drawer-item svg,
+.nv-drawer a.nv-drawer-item svg {
   color: #6b6672;
   flex-shrink: 0;
 }
 
 .nv button.nv-menu-item:hover,
 .nv button.nv-menu-item:focus-visible,
-.nv-drawer button.nv-drawer-item:hover {
+.nv-drawer button.nv-drawer-item:hover,
+.nv-drawer a.nv-drawer-item:hover {
   background: var(--brand-royal-tint);
   color: var(--brand-royal);
 }
 
 .nv button.nv-menu-item:hover svg,
-.nv-drawer button.nv-drawer-item:hover svg {
+.nv-drawer button.nv-drawer-item:hover svg,
+.nv-drawer a.nv-drawer-item:hover svg {
   color: var(--brand-royal);
 }
 
@@ -620,18 +625,21 @@
   list-style: none;
 }
 
-.nv-drawer button.nv-drawer-item {
+.nv-drawer button.nv-drawer-item,
+.nv-drawer a.nv-drawer-item {
   min-height: 48px;
   font-size: 15px;
 }
 
-.nv-drawer button.nv-drawer-item.is-active {
+.nv-drawer button.nv-drawer-item.is-active,
+.nv-drawer a.nv-drawer-item.is-active {
   background: var(--brand-royal-tint);
   color: var(--brand-royal);
   font-weight: 800;
 }
 
-.nv-drawer button.nv-drawer-item.is-active svg {
+.nv-drawer button.nv-drawer-item.is-active svg,
+.nv-drawer a.nv-drawer-item.is-active svg {
   color: var(--brand-royal);
 }
 
