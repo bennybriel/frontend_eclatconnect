@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { handleLinkClick, pathFor } from '../routing';
 import {
   Bell,
   ChevronDown,
@@ -165,13 +166,10 @@ export const Header: React.FC<HeaderProps> = ({ currentPage, onNavigate, onSearc
           {/* Left: brand */}
           <div className="nv-left">
             <a
-              href="/"
+              href={pathFor('Home')}
               className="nv-brand"
               aria-label="ECLAT CONNECT home"
-              onClick={e => {
-                e.preventDefault();
-                go('Home');
-              }}
+              onClick={e => handleLinkClick(e, () => go('Home'))}
             >
               <EclatLogo size={38} />
             </a>
@@ -185,13 +183,10 @@ export const Header: React.FC<HeaderProps> = ({ currentPage, onNavigate, onSearc
                 return (
                   <li key={section.id}>
                     <a
-                      href="/"
+                      href={pathFor(section.id)}
                       className={`nv-link${active ? ' is-active' : ''}`}
                       aria-current={active ? 'page' : undefined}
-                      onClick={e => {
-                        e.preventDefault();
-                        go(section.id);
-                      }}
+                      onClick={e => handleLinkClick(e, () => go(section.id))}
                     >
                       {section.label}
                     </a>
