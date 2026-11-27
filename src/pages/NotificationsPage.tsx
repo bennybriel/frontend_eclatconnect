@@ -28,11 +28,10 @@ export const NotificationsPage: React.FC<NotificationsPageProps> = ({
 
   const handleMarkAllRead = async () => {
     const unread = notifications.filter(n => !n.read_at);
-    for (const item of unread) {
-      try {
-        await request(`/me/notifications/${item.id}/read`, 'PATCH');
-      } catch {}
-    }
+    // Mark all unread notifications in parallel instead of one after another
+    await Promise.all(
+      unread.map(item => request(`/me/notifications/${item.id}/read`, 'PATCH').catch(() => null))
+    );
     onToast('All notifications marked as read', 'success');
     onRefresh();
   };
@@ -75,6 +74,21 @@ export const NotificationsPage: React.FC<NotificationsPageProps> = ({
     }
     return null;
   };
+
+  if (!user) {
+    return (
+      <div style={{ maxWidth: 560, margin: '40px auto', textAlign: 'center', padding: '48px 24px', background: '#fff', borderRadius: 12, border: '1px solid var(--border)' }}>
+        <div style={{ fontSize: 40, marginBottom: 12 }}>🔔</div>
+        <h2 style={{ margin: '0 0 8px', color: 'var(--brand-purple)', fontSize: 20 }}>Sign in to see your notifications</h2>
+        <p style={{ color: 'var(--text-muted)', margin: '0 0 20px', fontSize: 14.5, lineHeight: 1.55 }}>
+          Quotes on your requests, profile updates and replies will appear here once you sign in.
+        </p>
+        <button className="btn-lime" onClick={() => onNavigate('Auth')}>
+          Sign in or create an account
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div style={{ maxWidth: 780, margin: '0 auto' }}>

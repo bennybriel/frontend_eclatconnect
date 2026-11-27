@@ -1,0 +1,747 @@
+/* =====================================================================
+   Site navigation — one row, three columns:
+   [logo, far left] [section links, true centre] [search + notifications | post + account, far right]
+   The bar spans the screen with a 32px edge margin; the homepage hero uses the
+   same edges (see --site-max / --site-gutter) so they line up.
+   Spacing follows a 4px scale. Classes are prefixed "nv-".
+   Global `button` rules in style.css are overridden with ".nv button.*".
+   ===================================================================== */
+
+.nv {
+  --nv-height: 72px;
+  --nv-gutter: var(--site-gutter, 32px);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: #fff;
+  border-bottom: 1px solid var(--line);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.nv.is-scrolled {
+  border-bottom-color: transparent;
+  box-shadow: 0 1px 0 var(--line), 0 6px 20px rgba(30, 29, 27, 0.07);
+}
+
+.nv-container {
+  max-width: var(--site-max, 1760px);
+  margin: 0 auto;
+  padding-left: var(--nv-gutter);
+  padding-right: var(--nv-gutter);
+}
+
+.nv-sr-only {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* ---------- Row layout ---------- */
+
+/* Equal side columns keep the links in the true centre; max-content stops anything overlapping */
+.nv-row {
+  display: grid;
+  grid-template-columns: minmax(max-content, 1fr) auto minmax(max-content, 1fr);
+  align-items: center;
+  column-gap: 32px;
+  height: var(--nv-height);
+}
+
+.nv-left {
+  justify-self: start;
+}
+
+.nv-center {
+  display: flex;
+  justify-content: center;
+}
+
+.nv-right {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.nv-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.nv-brand {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 10px;
+  text-decoration: none;
+}
+
+.nv-brand:focus-visible {
+  outline: 2px solid var(--brand-royal);
+  outline-offset: 4px;
+}
+
+/* ---------- Centre links ---------- */
+
+.nv-links {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.nv-link {
+  display: inline-flex;
+  align-items: center;
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--brand-charcoal);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.nv-link:hover {
+  background: var(--brand-royal-tint);
+  color: var(--brand-royal);
+}
+
+.nv-link.is-active {
+  background: var(--brand-royal);
+  color: #fff;
+  font-weight: 700;
+}
+
+.nv-link:focus-visible {
+  outline: 2px solid var(--brand-royal);
+  outline-offset: 2px;
+}
+
+/* ---------- Right actions ---------- */
+
+.nv-icons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nv button.nv-icon-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--brand-charcoal);
+}
+
+.nv button.nv-icon-btn:hover,
+.nv button.nv-icon-btn.is-active {
+  background: var(--brand-royal-tint);
+  border-color: var(--brand-royal);
+  color: var(--brand-royal);
+}
+
+.nv-badge {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #d92d20;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 18px;
+  text-align: center;
+  box-shadow: 0 0 0 2px #fff;
+}
+
+.nv button.nv-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 20px;
+  border-radius: 999px;
+  font-size: 15px;
+  font-weight: 700;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+
+.nv button.nv-btn-cta {
+  background: var(--brand-electric);
+  color: var(--brand-charcoal);
+  font-weight: 800;
+}
+
+.nv button.nv-btn-cta:hover {
+  background: #a8e30b;
+}
+
+.nv-cta-short {
+  display: none;
+}
+
+.nv button.nv-btn-ghost {
+  background: #fff;
+  color: var(--brand-charcoal);
+  border-color: #d9d5de;
+}
+
+.nv button.nv-btn-ghost:hover {
+  background: var(--brand-royal-tint);
+  border-color: var(--brand-royal);
+  color: var(--brand-royal);
+}
+
+.nv button.nv-btn-primary {
+  background: var(--brand-royal);
+  color: #fff;
+}
+
+.nv button.nv-btn-primary:hover {
+  background: var(--brand-royal-deep);
+}
+
+/* Account menu */
+.nv-account {
+  position: relative;
+}
+
+.nv button.nv-account-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  height: 44px;
+  padding: 0 12px 0 5px;
+  border-radius: 999px;
+  background: #fff;
+  border: 1px solid #d9d5de;
+  color: var(--brand-charcoal);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.nv button.nv-account-btn:hover,
+.nv button.nv-account-btn[aria-expanded='true'] {
+  background: var(--brand-royal-tint);
+  border-color: var(--brand-royal);
+}
+
+.nv-account-name {
+  max-width: 110px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nv-chevron {
+  color: #77727d;
+  transition: transform 0.15s ease;
+}
+
+.nv button.nv-account-btn[aria-expanded='true'] .nv-chevron {
+  transform: rotate(180deg);
+}
+
+.nv-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--brand-royal);
+  color: var(--brand-sage);
+  font-size: 14px;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.nv-avatar-lg {
+  width: 42px;
+  height: 42px;
+  font-size: 16px;
+}
+
+.nv-menu {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: 280px;
+  padding: 8px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: 0 16px 40px rgba(30, 29, 27, 0.14);
+  z-index: 10;
+}
+
+.nv-menu-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 10px 14px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid var(--line);
+}
+
+.nv-menu-identity {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.nv-menu-name {
+  font-size: 14.5px;
+  font-weight: 800;
+  color: var(--brand-charcoal);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nv-menu-email {
+  font-size: 12.5px;
+  color: var(--ink-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nv button.nv-menu-item,
+.nv-drawer button.nv-drawer-item {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--brand-charcoal);
+  font-size: 14.5px;
+  font-weight: 600;
+  text-align: left;
+}
+
+.nv button.nv-menu-item svg,
+.nv-drawer button.nv-drawer-item svg {
+  color: #6b6672;
+  flex-shrink: 0;
+}
+
+.nv button.nv-menu-item:hover,
+.nv button.nv-menu-item:focus-visible,
+.nv-drawer button.nv-drawer-item:hover {
+  background: var(--brand-royal-tint);
+  color: var(--brand-royal);
+}
+
+.nv button.nv-menu-item:hover svg,
+.nv-drawer button.nv-drawer-item:hover svg {
+  color: var(--brand-royal);
+}
+
+.nv button.nv-menu-danger,
+.nv-drawer button.nv-menu-danger,
+.nv button.nv-menu-danger svg,
+.nv-drawer button.nv-menu-danger svg {
+  color: #b42318;
+}
+
+.nv button.nv-menu-danger:hover,
+.nv-drawer button.nv-menu-danger:hover {
+  background: #fef3f2;
+  color: #b42318;
+}
+
+.nv-menu-divider {
+  height: 1px;
+  margin: 6px 4px;
+  background: var(--line);
+}
+
+.nv button.nv-menu-toggle {
+  display: none;
+}
+
+/* ---------- Drop-down search bar ---------- */
+
+.nv-searchbar {
+  border-top: 1px solid var(--line);
+  background: #fff;
+  animation: nv-drop 0.18s ease-out;
+}
+
+@keyframes nv-drop {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.nv-searchbar-form {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-top: 14px;
+  padding-bottom: 14px;
+}
+
+.nv-searchbar-field {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+
+.nv-searchbar-icon {
+  position: absolute;
+  left: 16px;
+  color: var(--brand-royal);
+  pointer-events: none;
+}
+
+.nv-searchbar-field input {
+  width: 100%;
+  height: 52px;
+  padding: 0 16px 0 50px;
+  border: 1px solid #d9d5de;
+  border-radius: 14px;
+  outline: none;
+  background: #f8f7fa;
+  color: var(--brand-charcoal);
+  font-family: var(--font-body);
+  font-weight: 500;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+}
+
+.nv-searchbar-field input:focus {
+  background: #fff;
+  border-color: var(--brand-royal);
+  box-shadow: 0 0 0 3px rgba(76, 1, 106, 0.12);
+}
+
+.nv-searchbar button.nv-btn {
+  height: 52px;
+  padding: 0 28px;
+  border-radius: 14px;
+}
+
+/* ---------- Mobile drawer ---------- */
+
+.nv-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  background: rgba(30, 29, 27, 0.5);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.nv-drawer {
+  display: flex;
+  flex-direction: column;
+  width: min(360px, 88vw);
+  height: 100%;
+  background: #fff;
+  box-shadow: -12px 0 40px rgba(30, 29, 27, 0.2);
+  animation: nv-slide-in 0.2s ease-out;
+}
+
+@keyframes nv-slide-in {
+  from {
+    transform: translateX(24px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+.nv-drawer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 12px 12px 20px;
+  border-bottom: 1px solid var(--line);
+}
+
+.nv-drawer button.nv-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--brand-charcoal);
+}
+
+.nv-drawer button.nv-icon-btn:hover {
+  background: var(--brand-royal-tint);
+  color: var(--brand-royal);
+}
+
+.nv-drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 12px;
+}
+
+.nv-drawer-user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 8px 16px;
+}
+
+.nv-drawer-auth {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 0 4px 16px;
+}
+
+.nv-drawer button.nv-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 46px;
+  padding: 0 14px;
+  border-radius: 12px;
+  font-size: 14.5px;
+  font-weight: 700;
+  border: 1px solid transparent;
+}
+
+.nv-drawer button.nv-btn-primary {
+  background: var(--brand-royal);
+  color: #fff;
+}
+
+.nv-drawer button.nv-btn-primary:hover {
+  background: var(--brand-royal-deep);
+}
+
+.nv-drawer button.nv-btn-ghost {
+  background: #fff;
+  color: var(--brand-charcoal);
+  border-color: var(--line);
+}
+
+.nv-drawer button.nv-btn-ghost:hover {
+  background: var(--brand-royal-tint);
+  color: var(--brand-royal);
+}
+
+.nv-drawer button.nv-btn-cta {
+  width: 100%;
+  background: var(--brand-electric);
+  color: var(--brand-charcoal);
+  font-weight: 800;
+}
+
+.nv-drawer button.nv-btn-cta:hover {
+  background: #a8e30b;
+}
+
+.nv-drawer-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin: 0 4px 8px;
+}
+
+.nv-drawer-search-icon {
+  position: absolute;
+  left: 14px;
+  color: #77727d;
+  pointer-events: none;
+}
+
+.nv-drawer-search input {
+  width: 100%;
+  height: 46px;
+  padding: 0 12px 0 44px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  outline: none;
+  background: #f6f5f8;
+  font-family: var(--font-body);
+  font-weight: 500;
+}
+
+.nv-drawer-search input:focus {
+  background: #fff;
+  border-color: var(--brand-royal);
+}
+
+.nv-drawer-label {
+  margin: 16px 12px 6px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #8a8690;
+}
+
+.nv-drawer-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.nv-drawer button.nv-drawer-item {
+  min-height: 48px;
+  font-size: 15px;
+}
+
+.nv-drawer button.nv-drawer-item.is-active {
+  background: var(--brand-royal-tint);
+  color: var(--brand-royal);
+  font-weight: 800;
+}
+
+.nv-drawer button.nv-drawer-item.is-active svg {
+  color: var(--brand-royal);
+}
+
+.nv-drawer-count {
+  margin-left: auto;
+  min-width: 22px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: #d92d20;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.nv-drawer-foot {
+  padding: 12px 16px calc(16px + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--line);
+}
+
+.nv button:focus-visible,
+.nv-drawer button:focus-visible {
+  outline: 2px solid var(--brand-royal);
+  outline-offset: 2px;
+}
+
+/* ---------- Responsive ---------- */
+
+/* Below wide desktops: shorter post label */
+@media (max-width: 1599px) {
+  .nv-cta-long {
+    display: none;
+  }
+  .nv-cta-short {
+    display: inline;
+  }
+  .nv button.nv-btn-cta {
+    padding: 0 18px;
+  }
+}
+
+/* Standard desktops: the account button shows just the avatar */
+@media (max-width: 1439px) {
+  .nv-account-name {
+    display: none;
+  }
+  .nv button.nv-account-btn {
+    gap: 6px;
+    padding: 0 8px 0 5px;
+  }
+}
+
+/* Laptops: tighter links so the centre stays clear */
+@media (max-width: 1319px) {
+  .nv-row {
+    column-gap: 20px;
+  }
+  .nv-link {
+    padding: 0 9px;
+    font-size: 14px;
+  }
+  .nv-right {
+    gap: 12px;
+  }
+  .nv-actions {
+    gap: 8px;
+  }
+}
+
+/* Small laptops and tablets: links move into the menu */
+@media (max-width: 1219px) {
+  .nv-row {
+    display: flex;
+    justify-content: space-between;
+  }
+  .nv-center {
+    display: none;
+  }
+  .nv button.nv-menu-toggle {
+    display: inline-flex;
+  }
+}
+
+/* Phones: post and account move into the drawer and the bottom bar */
+@media (max-width: 768px) {
+  .nv {
+    --nv-height: 64px;
+    --nv-gutter: 16px;
+  }
+  .nv-hide-phone {
+    display: none !important;
+  }
+  .nv-icons {
+    gap: 6px;
+  }
+  .nv button.nv-icon-btn {
+    width: 40px;
+    height: 40px;
+  }
+  .nv-searchbar button.nv-btn {
+    padding: 0 18px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nv,
+  .nv *,
+  .nv-drawer,
+  .nv-searchbar {
+    transition: none !important;
+    animation: none !important;
+  }
+}

@@ -71,15 +71,17 @@ export const MyRequestsPage: React.FC<MyRequestsPageProps> = ({
                       🏷️ Pre-owned Sale
                     </span>
                   )}
-                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                    <span style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>Item Status:</span>
-                    <AvailabilityBadge
-                      status={req.availability_status || 'AVAILABLE'}
-                      interactive
-                      size="sm"
-                      onStatusChange={(newStatus) => handleUpdateAvailability(req.id, newStatus)}
-                    />
-                  </div>
+                  {req.request_type === 'PREOWNED_SALE' && (
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      <span style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>Item Status:</span>
+                      <AvailabilityBadge
+                        status={req.availability_status || 'AVAILABLE'}
+                        interactive
+                        size="sm"
+                        onStatusChange={(newStatus) => handleUpdateAvailability(req.id, newStatus)}
+                      />
+                    </div>
+                  )}
                   <span
                     className="card-badge"
                     style={{
@@ -99,7 +101,7 @@ export const MyRequestsPage: React.FC<MyRequestsPageProps> = ({
                 </div>
                 {req.private_address && (
                   <div style={{ fontSize: 12, color: '#166534', background: '#f0fdf4', padding: '3px 8px', borderRadius: 4, marginTop: 4, display: 'inline-block' }}>
-                    🔒 Precise Address: <strong>{req.private_address}</strong> (Protected · Shared only with agreed provider)
+                    🔒 Private address: <strong>{req.private_address}</strong> (not shown publicly)
                   </div>
                 )}
               </div>

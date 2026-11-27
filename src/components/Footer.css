@@ -1,0 +1,186 @@
+/* Site footer — Deep Charcoal base with Soft Sage text and Electric Lime accents (Eclat Group brand). */
+
+.fx {
+  margin-top: 16px;
+  background: var(--brand-charcoal);
+  color: var(--brand-sage);
+  border-top: 4px solid var(--brand-royal);
+}
+
+/* Same frame as the header and the home sections, so the edges line up down the page */
+.fx-inner {
+  width: min(calc(var(--site-max) - 2 * var(--site-gutter)), calc(100% - 2 * var(--site-gutter)));
+  margin: 0 auto;
+  padding: 56px 0 0;
+}
+
+.fx-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) repeat(3, minmax(0, 1fr)) minmax(0, 1.4fr);
+  gap: 36px 28px;
+}
+
+.fx-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.fx-about {
+  margin: 0;
+  max-width: 36ch;
+  font-size: 14px;
+  line-height: 1.65;
+  color: rgba(243, 254, 214, 0.78);
+}
+
+.fx-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 8px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(186, 248, 15, 0.35);
+  line-height: 1.35;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--brand-electric);
+}
+
+.fx-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 14px;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #fff;
+}
+
+.fx-col ul {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fx-col a {
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba(243, 254, 214, 0.82);
+  text-decoration: none;
+}
+
+.fx-col a:hover {
+  color: var(--brand-electric);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.fx-areas li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba(243, 254, 214, 0.82);
+}
+
+.fx-areas svg {
+  flex-shrink: 0;
+  color: var(--brand-electric);
+}
+
+.fx-safety p {
+  margin: 0 0 14px;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: rgba(243, 254, 214, 0.78);
+}
+
+.fx-safety .fx-title svg {
+  color: var(--brand-electric);
+}
+
+.fx-contact {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: var(--brand-sage) !important;
+  user-select: all;
+}
+
+.fx-bottom {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 24px;
+  margin-top: 48px;
+  padding: 20px 0 28px;
+  border-top: 1px solid rgba(243, 254, 214, 0.12);
+  font-size: 13px;
+  color: rgba(243, 254, 214, 0.65);
+}
+
+.fx-bottom p {
+  margin: 0;
+}
+
+.fx-legal {
+  display: flex;
+  gap: 20px;
+}
+
+.fx-legal a {
+  color: rgba(243, 254, 214, 0.82);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.fx-legal a:hover {
+  color: var(--brand-electric);
+}
+
+.fx a:focus-visible {
+  outline: 2px solid var(--brand-electric);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+@media (max-width: 1100px) {
+  .fx-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .fx-brand,
+  .fx-safety {
+    grid-column: span 3;
+  }
+}
+
+@media (max-width: 767px) {
+  .fx {
+    margin-top: 0;
+  }
+  .fx-inner {
+    padding: 40px 0 0;
+  }
+  .fx-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .fx-brand,
+  .fx-safety {
+    grid-column: span 2;
+  }
+  /* Leave room for the docked mobile navigation bar */
+  .fx-bottom {
+    padding-bottom: 96px;
+  }
+}

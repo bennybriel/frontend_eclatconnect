@@ -1,4 +1,24 @@
 :root {
+  /* ---- Site frame: the navigation bar and homepage hero share these edges ---- */
+  --site-max: 1760px;
+  --site-gutter: 32px;
+
+  /* ---- Eclat Group brand palette (Brand Identity Guidelines 2026) ---- */
+  --brand-royal: #4C016A;      /* Royal Purple: brand surfaces and accents */
+  --brand-electric: #BAF80F;   /* Electric Lime: highlights and calls to action only */
+  --brand-charcoal: #1E1D1B;   /* Deep Charcoal: text and structure */
+  --brand-sage: #F3FED6;       /* Soft Sage: backgrounds and soft sections */
+  --brand-royal-deep: #2E0141; /* darker royal for gradients and hover */
+  --brand-royal-tint: #F4ECF8; /* light royal tint for chips and active states */
+  --page-bg: #FBFCF7;          /* near-white with a sage lean, for the page canvas */
+  --ink-2: #4A4750;            /* secondary text on light backgrounds */
+  --line: #E7E5EA;             /* hairlines and card borders */
+
+  /* ---- Type (Google Fonts stand-ins: Montserrat for Mont + Montserrat, Caveat for Biro Script) ---- */
+  --font-display: 'Montserrat', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-body: 'Montserrat', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-accent: 'Caveat', 'Segoe Print', 'Bradley Hand', cursive;
+
   --primary: #4C016A;
   --primary-hover: #3b0153;
   --primary-light: #f3e9f7;
@@ -7,10 +27,10 @@
   --accent-lime: #BAF80F;
   --accent-lime-hover: #a5dc0d;
   --brand-lime: #BAF80F;
-  --charcoal: #242126;
-  --text-muted: #5e5963;
-  --ivory: #F7F5F0;
-  --warm-ivory: #F7F5F0;
+  --charcoal: #1E1D1B;
+  --text-muted: #5C5862;
+  --ivory: #F7F8F2;
+  --warm-ivory: #F7F8F2;
   --white: #FFFFFF;
   --border: #e6e0ea;
   --card-bg: #FFFFFF;
@@ -30,9 +50,9 @@
 
 body {
   margin: 0;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-family: var(--font-body);
   color: var(--charcoal);
-  background-color: var(--ivory);
+  background-color: var(--page-bg);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
@@ -41,7 +61,9 @@ body {
 h1, h2, h3, h4 {
   color: var(--charcoal);
   margin-top: 0;
-  font-weight: 700;
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: -0.01em;
 }
 
 a {
@@ -194,9 +216,10 @@ header.app-header {
 
 /* Main Layout */
 main.main-content {
+  --page-gutter: 20px;
   max-width: 1240px;
   margin: 0 auto;
-  padding: 24px 20px 60px;
+  padding: 24px var(--page-gutter) 60px;
   min-height: calc(100vh - 200px);
 }
 
@@ -468,6 +491,19 @@ main.main-content {
   padding: 3px 8px;
   border-radius: 6px;
   border: 1px solid #d8b4fe;
+}
+
+.neutral-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background-color: #f1f5f9;
+  color: #334155;
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
 }
 
 .approved-pill {
@@ -1167,7 +1203,8 @@ input, select, textarea {
 
 @media (max-width: 640px) {
   main.main-content {
-    padding: 16px 12px 48px;
+    --page-gutter: 16px;
+    padding: 16px var(--page-gutter) 48px;
   }
 
   .hero-banner {
@@ -2583,3 +2620,225 @@ input, select, textarea {
 }
 
 
+
+/* ===================================================================== */
+/* Phase 1 UX fixes                                                       */
+/* ===================================================================== */
+
+/* Toasts float above the page (and above open modals) so they are always seen */
+.toast-notice {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 88px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 11000;
+  width: min(560px, calc(100vw - 32px));
+  margin-bottom: 0;
+  gap: 12px;
+  box-shadow: 0 10px 28px rgba(36, 33, 38, 0.18);
+}
+
+/* Header: keep navigation on one line at laptop and small-desktop widths */
+.header-nav button.nav-link {
+  white-space: nowrap;
+}
+
+@media (min-width: 901px) and (max-width: 1200px) {
+  .header-nav {
+    gap: 2px;
+  }
+  .header-nav button.nav-link {
+    padding: 8px 9px;
+    font-size: 14px;
+  }
+  .header-actions {
+    gap: 6px;
+  }
+  .my-account-btn {
+    padding: 8px 12px;
+  }
+  .my-account-label {
+    display: none;
+  }
+}
+
+/* Visible keyboard focus for buttons, links and clickable cards */
+button:focus-visible,
+a:focus-visible,
+[role="button"]:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* ===================================================================== */
+/* Brand refresh: header (Eclat Group brand guidelines)                   */
+/* ===================================================================== */
+
+header.app-header {
+  background-color: rgba(255, 255, 255, 0.94);
+  backdrop-filter: saturate(160%) blur(10px);
+  -webkit-backdrop-filter: saturate(160%) blur(10px);
+  border-bottom: 1px solid var(--line);
+  box-shadow: none;
+}
+
+.header-container {
+  min-height: 68px;
+}
+
+.header-nav button.nav-link {
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--brand-charcoal);
+  border-radius: 10px;
+}
+
+.header-nav button.nav-link:hover {
+  background-color: var(--brand-royal-tint);
+  color: var(--brand-royal);
+}
+
+.header-nav button.nav-link.active {
+  background-color: var(--brand-royal);
+  color: #fff;
+}
+
+.icon-action-btn {
+  border-color: var(--line);
+  color: var(--brand-charcoal);
+}
+
+.my-account-btn {
+  white-space: nowrap;
+  background-color: #fff;
+  border-color: var(--line);
+  color: var(--brand-charcoal);
+  font-weight: 700;
+}
+
+.my-account-btn:hover {
+  border-color: var(--brand-royal);
+  color: var(--brand-royal);
+  background-color: var(--brand-royal-tint);
+}
+
+button.header-post-btn {
+  display: none;
+  height: 40px;
+  padding: 0 16px;
+  border-radius: 999px;
+  background-color: var(--brand-electric);
+  color: var(--brand-charcoal);
+  font-size: 14px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+button.header-post-btn:hover {
+  background-color: #a8e30b;
+}
+
+@media (min-width: 1280px) {
+  button.header-post-btn {
+    display: inline-flex;
+  }
+}
+
+/* Bottom navigation: keep all five items inside narrow phone screens */
+.mobile-bottom-nav {
+  height: calc(64px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.bottom-nav-item {
+  min-width: 0;
+}
+
+.bottom-nav-label {
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Bottom navigation: brand icons, no purple fill from the global button hover */
+.mobile-bottom-nav button.bottom-nav-item,
+.mobile-bottom-nav button.bottom-nav-item:hover {
+  background: transparent;
+  color: #6b6672;
+  border-radius: 0;
+  padding: 6px 0;
+  gap: 4px;
+}
+
+.mobile-bottom-nav button.bottom-nav-item.active {
+  color: var(--brand-royal);
+}
+
+.mobile-bottom-nav button.bottom-nav-item.active .bottom-nav-label {
+  font-weight: 800;
+}
+
+.mobile-bottom-nav button.bottom-nav-item:focus-visible {
+  outline: 2px solid var(--brand-royal);
+  outline-offset: -4px;
+}
+
+.mobile-bottom-nav .center-post-circle {
+  width: 48px;
+  height: 48px;
+  background-color: var(--brand-electric);
+  color: var(--brand-charcoal);
+  box-shadow: 0 4px 14px rgba(76, 1, 106, 0.25);
+  border: 3px solid #fff;
+}
+
+.mobile-bottom-nav button.center-post-btn .bottom-nav-label {
+  color: var(--brand-charcoal);
+  font-weight: 800;
+}
+
+/* Site frame edges get narrower on smaller screens */
+@media (max-width: 1279px) {
+  :root {
+    --site-gutter: 24px;
+  }
+}
+
+@media (max-width: 768px) {
+  :root {
+    --site-gutter: 16px;
+  }
+}
+
+/* Shown while a page that loads on demand is downloading; holds space so the footer does not jump */
+.page-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 50vh;
+  color: var(--ink-2, #55505d);
+  font-weight: 600;
+}
+
+.page-loading-spinner {
+  width: 22px;
+  height: 22px;
+  border: 3px solid rgba(76, 1, 106, 0.18);
+  border-top-color: var(--brand-royal, #4c016a);
+  border-radius: 50%;
+  animation: page-loading-spin 0.8s linear infinite;
+}
+
+@keyframes page-loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-loading-spinner {
+    animation-duration: 2.4s;
+  }
+}

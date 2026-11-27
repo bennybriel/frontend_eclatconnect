@@ -1,15 +1,18 @@
 import React, { useState } from 'react';
 import { request } from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import { useEscapeToClose } from '../components/useEscapeToClose';
 
 interface ReportModalProps {
   item: any;
   onClose: () => void;
   onToast: (msg: string, type?: 'info' | 'success' | 'error') => void;
+  onSignIn?: () => void;
 }
 
-export const ReportModal: React.FC<ReportModalProps> = ({ item, onClose, onToast }) => {
+export const ReportModal: React.FC<ReportModalProps> = ({ item, onClose, onToast, onSignIn }) => {
   const { isAuthenticated } = useAuth();
+  useEscapeToClose(onClose);
   const [reason, setReason] = useState('Misleading information or incorrect price');
   const [details, setDetails] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -39,7 +42,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({ item, onClose, onToast
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: 480 }}>
+      <div className="modal-content" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" style={{ maxWidth: 480 }}>
         <button className="modal-close" onClick={onClose}>×</button>
 
         <h3 style={{ margin: '0 0 10px 0', color: '#b91c1c' }}>
@@ -50,6 +53,23 @@ export const ReportModal: React.FC<ReportModalProps> = ({ item, onClose, onToast
           Reporting <strong>"{item.name || item.title}"</strong>. Help us maintain quality and trust around LAUTECH campus.
         </p>
 
+        {!isAuthenticated ? (
+          <div style={{ background: '#f8fafc', border: '1px solid var(--border)', borderRadius: 8, padding: 16, fontSize: 13.5, lineHeight: 1.5 }}>
+            <p style={{ margin: '0 0 12px' }}>
+              Please sign in to report this. Signing in helps the ECLAT CONNECT team follow up with you and prevents false reports.
+            </p>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              {onSignIn && (
+                <button type="button" className="btn-lime btn-sm" onClick={onSignIn}>
+                  Sign in to report
+                </button>
+              )}
+              <button type="button" className="btn-outline btn-sm" onClick={onClose}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label>Select Reason *</label>
@@ -87,6 +107,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({ item, onClose, onToast
             </button>
           </div>
         </form>
+        )}
       </div>
     </div>
   );

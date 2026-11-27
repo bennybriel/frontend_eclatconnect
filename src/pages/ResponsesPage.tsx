@@ -15,7 +15,7 @@ export const ResponsesPage: React.FC<ResponsesPageProps> = ({ responses, onNavig
         <div>
           <h1 style={{ margin: 0 }}>Vendor Quotes Received</h1>
           <p style={{ margin: '4px 0 0 0', color: 'var(--text-muted)', fontSize: 13.5 }}>
-            Offers and proposals sent by approved providers in response to your requests.
+            Offers and proposals sent by providers in response to your requests.
           </p>
         </div>
         <button className="btn-outline btn-sm" onClick={() => onNavigate('My Requests')}>
@@ -38,11 +38,7 @@ export const ResponsesPage: React.FC<ResponsesPageProps> = ({ responses, onNavig
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                     <span className="card-badge" style={{ background: '#f0fdf4', color: '#166534' }}>Quote Offer</span>
-                    {resp.verified ? (
-                      <span className="verified-pill">✓ Verified Provider</span>
-                    ) : (
-                      <span className="approved-pill">✓ Approved Provider</span>
-                    )}
+                    {resp.verified && <span className="verified-pill">✓ Verified provider</span>}
                   </div>
                   <h3 style={{ margin: '4px 0', fontSize: 17 }}>
                     🏪 {resp.provider_name}

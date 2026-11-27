@@ -94,6 +94,27 @@ export const ProviderApplicationPage: React.FC<ProviderApplicationPageProps> = (
     }
   };
 
+  if (!user) {
+    return (
+      <section className="form-panel" style={{ textAlign: 'center', padding: '48px 24px', maxWidth: 600, margin: '40px auto' }}>
+        <div style={{ fontSize: 48, marginBottom: 16 }}>🏪</div>
+        <h2 style={{ color: 'var(--primary)', marginBottom: 12 }}>List your business or trade on ECLAT CONNECT</h2>
+        <p style={{ color: 'var(--text-muted)', fontSize: 14.5, lineHeight: 1.6, marginBottom: 24 }}>
+          First create a free <strong>Vendor</strong> or <strong>Artisan</strong> account and activate it from your email.
+          After you sign in, your workspace will guide you through setting up your profile.
+        </p>
+        <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+          <button className="btn-lime" onClick={() => onNavigate('Auth')}>
+            Create account or sign in →
+          </button>
+          <button className="btn-outline" onClick={() => onNavigate('Home')}>
+            Back to marketplace
+          </button>
+        </div>
+      </section>
+    );
+  }
+
   if (isCustomer && !existingProvider && !isAdmin && !isVendor) {
     return (
       <section className="form-panel" style={{ textAlign: 'center', padding: '48px 24px', maxWidth: 600, margin: '40px auto' }}>

@@ -112,7 +112,7 @@ export const NewListingPage: React.FC<NewListingPageProps> = ({
             <span>⏳</span> Waiting for Final Approval
           </div>
           <p style={{ margin: 0, fontSize: 13.5, color: '#78350f', lineHeight: 1.55 }}>
-            Your vendor/artisan profile is currently <strong>waiting for final approval by the super administrator</strong>. Vendors and artisans can only add items and products once approved by a super admin.
+            The ECLAT CONNECT team is reviewing your profile. You can add products and services as soon as it is approved.
           </p>
         </div>
       ) : null}

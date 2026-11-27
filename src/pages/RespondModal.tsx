@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Provider, ServiceRequest } from '../types';
 import { request } from '../api/client';
+import { useEscapeToClose } from '../components/useEscapeToClose';
 
 interface RespondModalProps {
   serviceRequest: ServiceRequest;
@@ -17,6 +18,7 @@ export const RespondModal: React.FC<RespondModalProps> = ({
   onSuccess,
   onToast,
 }) => {
+  useEscapeToClose(onClose);
   const approved = myProviders.filter(p => p.status === 'APPROVED');
   const [providerId, setProviderId] = useState(approved[0]?.id || myProviders[0]?.id || '');
   const [price, setPrice] = useState(serviceRequest.budget ? String(serviceRequest.budget) : '');
@@ -43,7 +45,7 @@ export const RespondModal: React.FC<RespondModalProps> = ({
         price: price ? Number(price) : undefined,
         message: message.trim(),
       });
-      onToast('Your quote has been sent to the customer across WhatsApp, SMS and Email!', 'success');
+      onToast('Your quote has been sent to the customer.', 'success');
       onSuccess();
     } catch (err: any) {
       onToast(err.message, 'error');
@@ -54,7 +56,7 @@ export const RespondModal: React.FC<RespondModalProps> = ({
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: 540 }}>
+      <div className="modal-content" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" style={{ maxWidth: 540 }}>
         <button className="modal-close" onClick={onClose}>×</button>
 
         <h2 style={{ margin: '0 0 10px 0', color: 'var(--brand-purple)' }}>
@@ -68,13 +70,17 @@ export const RespondModal: React.FC<RespondModalProps> = ({
             <div><strong>Customer Budget:</strong> ₦{Number(serviceRequest.budget).toLocaleString()}</div>
           )}
           <div style={{ marginTop: 6, fontSize: 11.5, color: '#6b7280' }}>
-            🔒 Note: Exact hostel, lodge or street address is kept private and will be provided directly by the customer once this quote is accepted.
+            🔒 The customer's exact address is kept private. They will share it with you directly if they choose to go ahead.
           </div>
         </div>
 
         {approved.length === 0 ? (
           <div style={{ background: '#fef3c7', padding: 14, borderRadius: 8, color: '#92400e', marginBottom: 16, fontSize: 13 }}>
-            ⚠️ <strong>Vendor Approval Required:</strong> You need an approved business profile to submit live quotes. Your profile is currently pending review.
+            {myProviders.length === 0 ? (
+              <>⚠️ <strong>Provider profile needed:</strong> create a provider profile from your workspace before sending quotes.</>
+            ) : (
+              <>⏳ <strong>Profile under review:</strong> you can send quotes once the ECLAT CONNECT team approves your profile.</>
+            )}
           </div>
         ) : null}
 

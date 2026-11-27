@@ -1,9 +1,31 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  ArrowRight,
+  BadgeCheck,
+  Camera,
+  Hammer,
+  Heart,
+  MapPin,
+  Megaphone,
+  MessageCircle,
+  Recycle,
+  Search,
+  ShoppingBag,
+  SlidersHorizontal,
+  Star,
+  Store,
+  Tag,
+  Wrench,
+  X,
+} from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { Category, Location, AvailabilityStatus } from '../types';
 import { getCategoriesForType } from '../components/CategorySelect';
 import { DirectContactButtons } from '../components/DirectContactButtons';
 import { AvailabilityBadge } from '../components/AvailabilityBadge';
-import { DirectoryCardsSkeleton, SearchLoadingBanner } from '../components/SkeletonLoader';
+import { DirectoryCardsSkeleton } from '../components/SkeletonLoader';
+import { TrustBadge } from '../components/TrustBadge';
+import './DirectoryPage.css';
 
 interface DirectoryPageProps {
   pageTitle: string;
@@ -16,7 +38,8 @@ interface DirectoryPageProps {
   onSearchChange: (q: string) => void;
   onLocationChange: (loc: string) => void;
   onCategoryChange: (cat: string) => void;
-  onFilterSubmit: () => void;
+  /** Reloads the list; an override applies a value that is still being set in state */
+  onFilterSubmit: (override?: { q?: string; location_id?: string; category_id?: string }) => void;
   onResetFilters?: () => void;
   onSelectItem: (item: any) => void;
   onNavigate: (page: string) => void;
@@ -24,6 +47,228 @@ interface DirectoryPageProps {
   onToggleFavorite?: (item: any) => void;
   loading?: boolean;
 }
+
+// ---------------------------------------------------------------------------
+// Per-page content: one template serves Businesses, Artisans, Products, Services and Pre-owned
+// ---------------------------------------------------------------------------
+
+interface PageAction {
+  label: string;
+  target: string;
+}
+
+interface PageConfig {
+  eyebrow: string;
+  title: string;
+  promise: string;
+  icon: LucideIcon;
+  unit: [one: string, many: string];
+  listingType: 'BUSINESS' | 'ARTISAN' | 'SERVICE' | 'PRODUCT' | 'ALL';
+  primary: PageAction;
+  secondary: PageAction;
+  emptyTitle: string;
+  emptyNote: string;
+}
+
+const PAGES: Record<string, PageConfig> = {
+  Businesses: {
+    eyebrow: 'Shops & brands',
+    title: 'Businesses',
+    promise: 'Local shops, stores and brands around LAUTECH and Ogbomoso. Call or WhatsApp them directly.',
+    icon: Store,
+    unit: ['business', 'businesses'],
+    listingType: 'BUSINESS',
+    primary: { label: 'List your business free', target: 'Provider Application' },
+    secondary: { label: 'Post what I need', target: 'Post What I Need' },
+    emptyTitle: 'The first businesses are joining now',
+    emptyNote: 'Shops and brands appear here as soon as the ECLAT CONNECT team approves them. Own one? Be among the first to be found.',
+  },
+  'Campus Artisans': {
+    eyebrow: 'Skilled trades',
+    title: 'Artisans',
+    promise: 'Tailors, stylists, electricians, plumbers and technicians near you. Talk to them directly.',
+    icon: Hammer,
+    unit: ['artisan', 'artisans'],
+    listingType: 'ARTISAN',
+    primary: { label: 'List your skill free', target: 'Provider Application' },
+    secondary: { label: 'Post a job request', target: 'Post Service Request' },
+    emptyTitle: 'The first artisans are joining now',
+    emptyNote: 'Skilled people appear here as soon as the ECLAT CONNECT team approves them. Post the job you need and let them come to you.',
+  },
+  Products: {
+    eyebrow: 'Buy new',
+    title: 'Products',
+    promise: 'Gadgets, fashion, provisions and brand-new items from sellers around you.',
+    icon: ShoppingBag,
+    unit: ['product', 'products'],
+    listingType: 'PRODUCT',
+    primary: { label: 'Request a product', target: 'Post Product Request' },
+    secondary: { label: 'Sell on ECLAT CONNECT', target: 'Provider Application' },
+    emptyTitle: 'The first products are on their way',
+    emptyNote: 'Products appear here as soon as sellers are approved. Tell sellers what you are looking for and they can reach you.',
+  },
+  Services: {
+    eyebrow: 'Everyday help',
+    title: 'Services',
+    promise: 'Laundry, repairs, deliveries and more from providers around campus and town.',
+    icon: Wrench,
+    unit: ['service', 'services'],
+    listingType: 'SERVICE',
+    primary: { label: 'Post a service request', target: 'Post Service Request' },
+    secondary: { label: 'Offer a service', target: 'Provider Application' },
+    emptyTitle: 'The first services are on their way',
+    emptyNote: 'Services appear here as soon as providers are approved. Post what you need and nearby providers can send you offers.',
+  },
+  'Pre-owned Items': {
+    eyebrow: 'Student deals',
+    title: 'Pre-owned',
+    promise: 'Gently used laptops, fans, books and furniture from people near you.',
+    icon: Recycle,
+    unit: ['item', 'items'],
+    listingType: 'PRODUCT',
+    primary: { label: 'Sell a pre-owned item', target: 'Sell Pre-owned Item' },
+    secondary: { label: 'Request a used item', target: 'Post Pre-owned Request' },
+    emptyTitle: 'No pre-owned items yet',
+    emptyNote: 'Got something you no longer use? List it in a minute, or ask for the item you need.',
+  },
+};
+
+const FALLBACK_PAGE: PageConfig = {
+  eyebrow: 'Around you',
+  title: 'Listings',
+  promise: 'Listings from local providers and sellers around LAUTECH and Ogbomoso.',
+  icon: Tag,
+  unit: ['listing', 'listings'],
+  listingType: 'ALL',
+  primary: { label: 'Post what I need', target: 'Post What I Need' },
+  secondary: { label: 'List your business free', target: 'Provider Application' },
+  emptyTitle: 'Nothing here yet',
+  emptyNote: 'Listings appear here as soon as they are approved.',
+};
+
+type SortKey = 'recommended' | 'newest' | 'rating' | 'name';
+
+const SORTS: { key: SortKey; label: string }[] = [
+  { key: 'recommended', label: 'Best match' },
+  { key: 'newest', label: 'Newest' },
+  { key: 'rating', label: 'Top rated' },
+  { key: 'name', label: 'A to Z' },
+];
+
+const ratingOf = (item: any) => Number(item.avg_rating || item.provider_rating || 0);
+const dateOf = (item: any) => new Date(item.created_at || item.createdAt || 0).getTime() || 0;
+const isVerified = (item: any) => Boolean(item.verified || item.provider_verified || item.is_verified);
+
+// ---------------------------------------------------------------------------
+// Card
+// ---------------------------------------------------------------------------
+
+interface CardProps {
+  item: any;
+  index: number;
+  isFavorite: boolean;
+  onOpen: (item: any) => void;
+  onToggleFavorite?: (item: any) => void;
+}
+
+const DirectoryCard: React.FC<CardProps> = ({ item, index, isFavorite, onOpen, onToggleFavorite }) => {
+  const name: string = item.name || item.title || 'Listing';
+  const image: string | null = item.image_url || (item.images ? String(item.images).split(',')[0].trim() : null);
+  const photoCount = item.images ? String(item.images).split(',').filter(Boolean).length : image ? 1 : 0;
+  const category =
+    item.custom_category || item.category || item.category_name ||
+    (item.type === 'PROFESSIONAL' ? 'Artisan' : item.type === 'BUSINESS' ? 'Business' : item.kind || '');
+  const rating = ratingOf(item);
+  const reviews = item.review_count ?? item.provider_review_count;
+  const price = Number(item.price || item.budget);
+  const area = item.location_area || item.location;
+  const isPreowned = item.request_type === 'PREOWNED_SALE' || Boolean(item.condition);
+  const isSold = (item.availability_status || '').toUpperCase() === 'SOLD';
+
+  return (
+    <li className={`dx-card${isSold ? ' is-sold' : ''}`} style={{ '--dx-i': Math.min(index, 11) } as React.CSSProperties}>
+      <div className="dx-card-media">
+        {image ? (
+          <img src={image} alt="" loading="lazy" decoding="async" />
+        ) : (
+          /* No photo: the first letter on a brand tile, so every card has a face */
+          <span className="dx-card-initial" aria-hidden="true">{name.trim().charAt(0).toUpperCase()}</span>
+        )}
+        {photoCount > 1 && (
+          <span className="dx-card-photos">
+            <Camera size={13} aria-hidden="true" /> {photoCount}
+          </span>
+        )}
+        {onToggleFavorite && (
+          <button
+            type="button"
+            className={`dx-card-fav${isFavorite ? ' is-on' : ''}`}
+            onClick={() => onToggleFavorite(item)}
+            aria-pressed={isFavorite}
+            aria-label={isFavorite ? `Remove ${name} from saved` : `Save ${name}`}
+          >
+            <Heart size={17} strokeWidth={2.2} aria-hidden="true" />
+          </button>
+        )}
+      </div>
+
+      <div className="dx-card-body">
+        <div className="dx-card-tags">
+          {category && <span className="dx-card-cat">{category}</span>}
+          <TrustBadge item={item} />
+          {item.kind === 'PROJECT' && <span className="dx-card-tag">Past work</span>}
+          {isPreowned && <span className="dx-card-tag is-green">{item.condition || 'Pre-owned'}</span>}
+          {(isPreowned || item.availability_status) && (
+            <AvailabilityBadge status={item.availability_status || 'AVAILABLE'} size="sm" />
+          )}
+        </div>
+
+        <h3 className="dx-card-title">
+          {/* The title's button covers the whole card, so a tap anywhere opens the details */}
+          <button type="button" className="dx-card-open" onClick={() => onOpen(item)}>
+            {name}
+          </button>
+        </h3>
+
+        {item.description && <p className="dx-card-desc">{item.description}</p>}
+
+        <div className="dx-card-meta">
+          {price > 0 && <span className="dx-card-price">₦{price.toLocaleString()}</span>}
+          {rating > 0 && (
+            <span className="dx-card-rating">
+              <Star size={13} aria-hidden="true" /> {rating.toFixed(1)}
+              {reviews != null && <span className="dx-card-reviews">({reviews})</span>}
+            </span>
+          )}
+          {area && (
+            <span className="dx-card-area">
+              <MapPin size={13} aria-hidden="true" /> {area}
+            </span>
+          )}
+        </div>
+
+        {item.provider_name && item.provider_name !== name && (
+          <p className="dx-card-by">
+            by <strong>{item.provider_name}</strong>
+          </p>
+        )}
+
+        <div className="dx-card-contact">
+          <DirectContactButtons
+            phone={item.phone || item.customer_phone}
+            whatsapp={item.whatsapp || item.customer_phone || item.phone}
+            listingTitle={name}
+            variant="compact"
+          />
+        </div>
+      </div>
+    </li>
+  );
+};
+
+// ---------------------------------------------------------------------------
+// Page
+// ---------------------------------------------------------------------------
 
 export const DirectoryPage: React.FC<DirectoryPageProps> = ({
   pageTitle,
@@ -44,402 +289,270 @@ export const DirectoryPage: React.FC<DirectoryPageProps> = ({
   onToggleFavorite,
   loading = false,
 }) => {
+  const config = PAGES[pageTitle] || FALLBACK_PAGE;
+  const PageIcon = config.icon;
+  const isPreownedPage = pageTitle === 'Pre-owned Items';
+
   const [availabilityFilter, setAvailabilityFilter] = useState<'ALL' | AvailabilityStatus>('ALL');
+  const [sort, setSort] = useState<SortKey>('recommended');
 
-  const listingType =
-    pageTitle === 'Businesses'
-      ? 'BUSINESS'
-      : pageTitle === 'Campus Artisans' || pageTitle === 'Artisans'
-      ? 'ARTISAN'
-      : pageTitle === 'Services'
-      ? 'SERVICE'
-      : pageTitle === 'Products' || pageTitle === 'Pre-owned Items'
-      ? 'PRODUCT'
-      : 'ALL';
+  const relevantCategories = getCategoriesForType(categories, config.listingType);
 
-  const relevantCategories = getCategoriesForType(categories, listingType);
+  // One entry per area name (the location list can contain the same area twice)
+  const areas = useMemo(() => {
+    const seen = new Set<string>();
+    return locations.filter(loc => {
+      const key = (loc.area || '').trim().toLowerCase();
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [locations]);
 
-  const displayedItems = items.filter(item => {
-    if (pageTitle !== 'Pre-owned Items' || availabilityFilter === 'ALL') return true;
-    const itemStatus = (item.availability_status || 'AVAILABLE').toUpperCase();
-    return itemStatus === availabilityFilter;
-  });
+  // Search runs as you type, a moment after you stop; Enter runs it straight away
+  const searchTimer = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(searchTimer.current), []);
+  const runSearch = (value: string, now = false) => {
+    onSearchChange(value);
+    window.clearTimeout(searchTimer.current);
+    if (now) onFilterSubmit({ q: value });
+    else searchTimer.current = window.setTimeout(() => onFilterSubmit({ q: value }), 400);
+  };
+
+  const displayedItems = useMemo(() => {
+    const filtered = items.filter(item => {
+      if (!isPreownedPage || availabilityFilter === 'ALL') return true;
+      return (item.availability_status || 'AVAILABLE').toUpperCase() === availabilityFilter;
+    });
+    const sorted = [...filtered];
+    if (sort === 'newest') sorted.sort((a, b) => dateOf(b) - dateOf(a));
+    else if (sort === 'rating') sorted.sort((a, b) => ratingOf(b) - ratingOf(a));
+    else if (sort === 'name') sorted.sort((a, b) => String(a.name || a.title || '').localeCompare(String(b.name || b.title || '')));
+    else sorted.sort((a, b) => Number(isVerified(b)) - Number(isVerified(a)) || ratingOf(b) - ratingOf(a) || dateOf(b) - dateOf(a));
+    return sorted;
+  }, [items, isPreownedPage, availabilityFilter, sort]);
+
+  const areaName = areas.find(a => a.id === locationFilter)?.area || locations.find(l => l.id === locationFilter)?.area;
+  const categoryName = relevantCategories.find(c => c.id === categoryFilter)?.name || categories.find(c => c.id === categoryFilter)?.name;
+  const hasFilters = Boolean(q || locationFilter || categoryFilter || (isPreownedPage && availabilityFilter !== 'ALL'));
+  const count = displayedItems.length;
+  const countText = `${count} ${count === 1 ? config.unit[0] : config.unit[1]}`;
+
+  const clearAll = () => {
+    window.clearTimeout(searchTimer.current);
+    setAvailabilityFilter('ALL');
+    if (onResetFilters) onResetFilters();
+    else {
+      onSearchChange('');
+      onLocationChange('');
+      onCategoryChange('');
+    }
+  };
+
   return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 20 }}>
-        <div>
-          <h1 style={{ margin: 0 }}>{pageTitle}</h1>
-          <p style={{ margin: '4px 0 0 0', color: 'var(--text-muted)', fontSize: 13.5 }}>
-            {pageTitle === 'Campus Artisans' || pageTitle === 'Artisans'
-              ? 'Find trusted artisans, skilled technicians, handwork professionals and repairs across LAUTECH & Ogbomoso.'
-              : pageTitle === 'Businesses'
-              ? 'Discover vetted local shops, stores, and merchant brands around LAUTECH & Ogbomoso.'
-              : 'Browse approved listings, local providers, and items.'}
+    <div className="dx">
+      {/* ================================================================ */}
+      {/* Page header: the hero's purple, in a compact band                */}
+      {/* ================================================================ */}
+      <header className="dx-head">
+        <div className="dx-head-text">
+          <p className="dx-head-eyebrow">{config.eyebrow}</p>
+          <h1 className="dx-head-title">{config.title}</h1>
+          <p className="dx-head-promise">{config.promise}</p>
+          <p className="dx-head-count" aria-live="polite">
+            <span className="dx-head-dot" aria-hidden="true" />
+            {loading ? 'Loading…' : hasFilters ? `${countText} found` : count === 0 ? 'Just launching' : `${countText} near you`}
           </p>
         </div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {pageTitle === 'Pre-owned Items' ? (
-            <>
-              <button className="btn-outline btn-sm" onClick={() => onNavigate('Post Pre-owned Request')}>
-                📢 Request a Used Item
-              </button>
-              <button className="btn-lime btn-sm" onClick={() => onNavigate('Sell Pre-owned Item')}>
-                🏷️ Sell Pre-owned Item
-              </button>
-            </>
-          ) : (
-            <>
-              <button className="btn-outline btn-sm" onClick={() => onNavigate('Post What I Need')}>
-                📢 Post What I Need
-              </button>
-              <button className="btn-lime btn-sm" onClick={() => onNavigate('Sell Pre-owned Item')}>
-                🏷️ Sell Pre-owned Item
-              </button>
-            </>
-          )}
+        <div className="dx-head-actions">
+          <button type="button" className="dx-btn dx-btn-lime" onClick={() => onNavigate(config.primary.target)}>
+            {config.primary.label} <ArrowRight size={17} aria-hidden="true" />
+          </button>
+          <button type="button" className="dx-btn dx-btn-ghost" onClick={() => onNavigate(config.secondary.target)}>
+            {config.secondary.label}
+          </button>
         </div>
-      </div>
+        <span className="dx-head-art" aria-hidden="true">
+          <PageIcon size={56} strokeWidth={1.6} />
+        </span>
+      </header>
 
-      {/* Filter Bar */}
-      <div className="search-box-bar" style={{ marginBottom: 24 }}>
-        <div className="search-input-group">
-          <span>🔍</span>
+      {/* ================================================================ */}
+      {/* Filters: search runs as you type; area and category apply at once */}
+      {/* ================================================================ */}
+      <div className="dx-filters" role="search">
+        <label className="dx-field dx-field-search">
+          <Search size={19} aria-hidden="true" />
+          <span className="dx-visually-hidden">Search {config.title.toLowerCase()}</span>
           <input
-            placeholder={`Search ${pageTitle.toLowerCase()}...`}
+            type="search"
+            placeholder={`Search ${config.title.toLowerCase()}…`}
             value={q}
-            onChange={e => onSearchChange(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && onFilterSubmit()}
+            onChange={e => runSearch(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && runSearch(q, true)}
           />
-        </div>
-
-        <div className="search-select-group">
-          <span>📍</span>
-          <select value={locationFilter} onChange={e => onLocationChange(e.target.value)}>
-            <option value="">All Locations</option>
-            {locations.map(loc => (
-              <option key={loc.id} value={loc.id}>
-                {loc.area}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="search-select-group">
-          <span>🏷️</span>
-          <select value={categoryFilter} onChange={e => onCategoryChange(e.target.value)}>
-            <option value="">All Categories</option>
-            {relevantCategories.map(c => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <button onClick={onFilterSubmit} disabled={loading} style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-          {loading ? (
-            <>
-              <span className="eclat-loading-ring-lime" />
-              <span>Filtering...</span>
-            </>
-          ) : (
-            'Filter'
+          {q && (
+            <button type="button" className="dx-field-clear" onClick={() => runSearch('', true)} aria-label="Clear search">
+              <X size={15} aria-hidden="true" />
+            </button>
           )}
-        </button>
+        </label>
+        <label className="dx-field dx-field-select">
+          <MapPin size={18} aria-hidden="true" />
+          <span className="dx-visually-hidden">Area</span>
+          <select value={locationFilter} onChange={e => onLocationChange(e.target.value)}>
+            <option value="">All areas</option>
+            {areas.map(loc => (
+              <option key={loc.id} value={loc.id}>{loc.area}</option>
+            ))}
+          </select>
+        </label>
+        <label className="dx-field dx-field-select dx-field-sort">
+          <SlidersHorizontal size={18} aria-hidden="true" />
+          <span className="dx-visually-hidden">Sort by</span>
+          <select value={sort} onChange={e => setSort(e.target.value as SortKey)}>
+            {SORTS.map(s => (
+              <option key={s.key} value={s.key}>{s.label}</option>
+            ))}
+          </select>
+        </label>
       </div>
 
-      {/* Pre-owned Availability Filter Pills */}
-      {pageTitle === 'Pre-owned Items' && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 18, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)' }}>Availability:</span>
-          {(['ALL', 'AVAILABLE', 'RESERVED', 'SOLD'] as const).map(st => (
+      {/* Categories as chips you can tap; they scroll sideways when there are many */}
+      {relevantCategories.length > 0 && (
+        <div className="dx-chips" role="group" aria-label="Categories">
+          <button
+            type="button"
+            className={`dx-chip${!categoryFilter ? ' is-on' : ''}`}
+            aria-pressed={!categoryFilter}
+            onClick={() => onCategoryChange('')}
+          >
+            All
+          </button>
+          {relevantCategories.map(c => (
             <button
-              key={st}
-              onClick={() => setAvailabilityFilter(st)}
-              style={{
-                padding: '4px 12px',
-                borderRadius: 20,
-                fontSize: 12.5,
-                fontWeight: availabilityFilter === st ? 700 : 500,
-                border: '1px solid',
-                borderColor: availabilityFilter === st
-                  ? st === 'AVAILABLE' ? '#16a34a' : st === 'RESERVED' ? '#d97706' : st === 'SOLD' ? '#475569' : 'var(--dark-moss)'
-                  : 'var(--border)',
-                background: availabilityFilter === st
-                  ? st === 'AVAILABLE' ? '#dcfce7' : st === 'RESERVED' ? '#fef3c7' : st === 'SOLD' ? '#f1f5f9' : 'var(--dark-moss)'
-                  : '#fff',
-                color: availabilityFilter === st
-                  ? st === 'AVAILABLE' ? '#15803d' : st === 'RESERVED' ? '#b45309' : st === 'SOLD' ? '#475569' : '#fff'
-                  : 'var(--text-dark)',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 4,
-              }}
+              key={c.id}
+              type="button"
+              className={`dx-chip${categoryFilter === c.id ? ' is-on' : ''}`}
+              aria-pressed={categoryFilter === c.id}
+              onClick={() => onCategoryChange(categoryFilter === c.id ? '' : c.id)}
             >
-              {st === 'ALL' && 'All Items'}
-              {st === 'AVAILABLE' && '🟢 Available Only'}
-              {st === 'RESERVED' && '🟡 Reserved'}
-              {st === 'SOLD' && '⚪ Sold'}
+              {c.name}
             </button>
           ))}
         </div>
       )}
 
-      {/* Loading Skeletons */}
-      {loading && (
-        <div style={{ marginTop: 20 }}>
-          <SearchLoadingBanner text={`Searching ${pageTitle.toLowerCase()} near LAUTECH & Ogbomoso...`} />
-          <DirectoryCardsSkeleton count={6} />
-        </div>
-      )}
-
-      {/* Cards Grid */}
-      {!loading && (
-        <div className="cards-grid">
-          {displayedItems.map(item => {
-          const imgCount = item.images ? item.images.split(',').filter(Boolean).length : (item.image_url ? 1 : 0);
-          const displayImage = item.image_url || (item.images ? item.images.split(',')[0].trim() : null);
-          const isSold = (item.availability_status || '').toUpperCase() === 'SOLD';
-
-          return (
-            <article
-              key={item.id}
-              className="item-card"
-              style={{ cursor: 'pointer', opacity: isSold ? 0.78 : 1 }}
-              onClick={() => onSelectItem(item)}
+      {/* Pre-owned: availability */}
+      {isPreownedPage && (
+        <div className="dx-chips dx-chips-small" role="group" aria-label="Availability">
+          {(['ALL', 'AVAILABLE', 'RESERVED', 'SOLD'] as const).map(st => (
+            <button
+              key={st}
+              type="button"
+              className={`dx-chip${availabilityFilter === st ? ' is-on' : ''}`}
+              aria-pressed={availabilityFilter === st}
+              onClick={() => setAvailabilityFilter(st)}
             >
-              <div>
-                <div className="item-card-header">
-                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-                    <span className="card-badge">
-                      {item.type === 'PROFESSIONAL'
-                        ? (item.custom_category || item.category || item.category_name || 'Artisan')
-                        : item.type === 'BUSINESS'
-                        ? (item.custom_category || item.category || item.category_name || 'Business')
-                        : (item.custom_category || item.category || item.category_name || item.kind || item.type)}
-                    </span>
-                    {item.kind === 'PROJECT' && (
-                      <span style={{ fontSize: 11, background: '#7c3aed', color: '#fff', padding: '2px 7px', borderRadius: 4, fontWeight: 700 }}>
-                        🛠️ Past Work
-                      </span>
-                    )}
-                    {(item.request_type === 'PREOWNED_SALE' || item.condition) && (
-                      <span style={{ fontSize: 11, background: '#10b981', color: '#fff', padding: '2px 7px', borderRadius: 4, fontWeight: 700 }}>
-                        🏷️ {item.condition || 'Pre-owned'}
-                      </span>
-                    )}
-                    {(item.request_type === 'PREOWNED_SALE' || item.availability_status) && (
-                      <AvailabilityBadge status={item.availability_status || 'AVAILABLE'} size="sm" />
-                    )}
-                  </div>
-                  {item.verified ? (
-                    <span className="verified-pill">✓ Verified {item.type === 'PROFESSIONAL' ? 'Artisan' : 'Provider'}</span>
-                  ) : (
-                    <span className="approved-pill">✓ Approved {item.type === 'PROFESSIONAL' ? 'Artisan' : 'Provider'}</span>
-                  )}
-                  {(Number(item.avg_rating) > 0 || Number(item.provider_rating) > 0) && (
-                    <span style={{ fontSize: 11.5, fontWeight: 700, color: '#b45309', background: '#fef3c7', padding: '2px 7px', borderRadius: 4, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
-                      ★ {Number(item.avg_rating || item.provider_rating).toFixed(1)}
-                      <span style={{ fontSize: 10.5, color: '#78350f', fontWeight: 500 }}>
-                        ({item.review_count ?? item.provider_review_count ?? 1})
-                      </span>
-                    </span>
-                  )}
-                </div>
-
-                <h3 style={{ margin: '8px 0 4px', fontSize: 16 }}>{item.name || item.title}</h3>
-
-                {displayImage && (
-                  <div style={{ position: 'relative', width: '100%', height: 160, borderRadius: 8, overflow: 'hidden', margin: '8px 0', background: '#f8fafc' }}>
-                    <img
-                      src={displayImage}
-                      alt={item.name || item.title}
-                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                    />
-                    {onToggleFavorite && (
-                      <button
-                        type="button"
-                        onClick={e => {
-                          e.stopPropagation();
-                          onToggleFavorite(item);
-                        }}
-                        style={{
-                          position: 'absolute',
-                          top: 8,
-                          right: 8,
-                          background: 'rgba(255, 255, 255, 0.92)',
-                          border: 'none',
-                          borderRadius: '50%',
-                          width: 30,
-                          height: 30,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: 15,
-                          cursor: 'pointer',
-                          boxShadow: '0 2px 6px rgba(0,0,0,0.18)',
-                        }}
-                        title="Save listings you are interested in so you can easily find them later."
-                        aria-label="Save listings you are interested in so you can easily find them later."
-                      >
-                        {favorites[item.id] ? '❤️' : '🤍'}
-                      </button>
-                    )}
-                    {imgCount > 1 && (
-                      <span style={{
-                        position: 'absolute',
-                        bottom: 8,
-                        right: 8,
-                        background: 'rgba(0,0,0,0.7)',
-                        color: '#fff',
-                        fontSize: 10.5,
-                        padding: '2px 8px',
-                        borderRadius: 12,
-                        fontWeight: 600,
-                        backdropFilter: 'blur(4px)'
-                      }}>
-                        📷 {imgCount} photos
-                      </span>
-                    )}
-                  </div>
-                )}
-
-                {item.description && (
-                  <p className="description" style={{ fontSize: 13, color: '#555', margin: '4px 0 8px' }}>
-                    {item.description.length > 120 ? item.description.substring(0, 120) + '...' : item.description}
-                  </p>
-                )}
-
-                {(item.price || item.budget) && (
-                  <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--brand-purple)', margin: '4px 0' }}>
-                    ₦{Number(item.price || item.budget).toLocaleString()}
-                  </div>
-                )}
-
-                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
-                  📍 {item.location_area || item.location}
-                  {item.landmark && ` (${item.landmark})`}
-                </div>
-
-                {item.provider_name && (
-                  <div style={{ fontSize: 12, color: '#333', marginTop: 4 }}>
-                    🏪 Vendor: <strong>{item.provider_name}</strong>
-                  </div>
-                )}
-              </div>
-
-              <div onClick={e => e.stopPropagation()}>
-                <DirectContactButtons
-                  phone={item.phone || item.customer_phone}
-                  whatsapp={item.whatsapp || item.customer_phone || item.phone}
-                  listingTitle={item.name || item.title}
-                />
-              </div>
-            </article>
-          );
-        })}
+              {st === 'ALL' ? 'All items' : st === 'AVAILABLE' ? 'Available' : st === 'RESERVED' ? 'Reserved' : 'Sold'}
+            </button>
+          ))}
         </div>
       )}
 
-      {!loading && displayedItems.length === 0 && (() => {
-        const hasFilters = Boolean(q || locationFilter || categoryFilter || (pageTitle === 'Pre-owned Items' && availabilityFilter !== 'ALL'));
-        const isArtisan = pageTitle === 'Campus Artisans' || pageTitle === 'Artisans' || pageTitle === 'Professionals';
-        const isBusiness = pageTitle === 'Businesses';
-        const isProduct = pageTitle === 'Products';
-        const isPreowned = pageTitle === 'Pre-owned Items' || pageTitle === 'Pre-owned';
-        const isService = pageTitle === 'Services';
+      {/* Active filters, each removable */}
+      {hasFilters && !loading && (
+        <div className="dx-active">
+          <span className="dx-active-label">Showing:</span>
+          {q && (
+            <button type="button" className="dx-active-chip" onClick={() => runSearch('', true)}>
+              “{q}” <X size={13} aria-hidden="true" />
+              <span className="dx-visually-hidden">Remove search</span>
+            </button>
+          )}
+          {locationFilter && (
+            <button type="button" className="dx-active-chip" onClick={() => onLocationChange('')}>
+              {areaName || 'Area'} <X size={13} aria-hidden="true" />
+              <span className="dx-visually-hidden">Remove area</span>
+            </button>
+          )}
+          {categoryFilter && (
+            <button type="button" className="dx-active-chip" onClick={() => onCategoryChange('')}>
+              {categoryName || 'Category'} <X size={13} aria-hidden="true" />
+              <span className="dx-visually-hidden">Remove category</span>
+            </button>
+          )}
+          <button type="button" className="dx-active-clear" onClick={clearAll}>Clear all</button>
+        </div>
+      )}
 
-        let icon = '🔍';
-        let title = `No ${pageTitle.toLowerCase()} found`;
-        let message = 'Try broadening your search keywords or choosing another location, or tell the ECLAT CONNECT community what you need.';
-        let primaryBtn = {
-          label: 'Post What I Need →',
-          action: () => onNavigate('Post What I Need'),
-        };
-        let secondaryBtn: { label: string; action: () => void } | null = null;
+      {/* Loading */}
+      {loading && <DirectoryCardsSkeleton count={6} />}
 
-        if (isBusiness) {
-          icon = '🏪';
-          title = 'No businesses found';
-          message = hasFilters
-            ? 'No businesses found matching your criteria. Try another location or category, or broaden your search.'
-            : 'No businesses found – try another location or category.';
-          primaryBtn = {
-            label: '📢 Post What I Need →',
-            action: () => onNavigate('Post What I Need'),
-          };
-        } else if (isProduct) {
-          icon = '🛍️';
-          title = 'No products found';
-          message = hasFilters
-            ? 'No products found matching your search. Broaden your search keywords, choose "All Locations", or post a request for the product you need.'
-            : 'No products found – broaden your search.';
-          primaryBtn = {
-            label: '🛍️ Request This Product →',
-            action: () => onNavigate('Post Product Request'),
-          };
-        } else if (isArtisan) {
-          icon = '🛠️';
-          title = 'No artisans found';
-          message = hasFilters
-            ? 'No campus artisans found matching your filter. View other categories, select another location, or post a request so skilled artisans can reach out.'
-            : 'No artisans found – view other categories or post a request.';
-          primaryBtn = {
-            label: '🛠️ Post an Artisan / Service Request →',
-            action: () => onNavigate('Post Service Request'),
-          };
-        } else if (isPreowned) {
-          icon = '♻️';
-          title = 'No pre-owned items found';
-          message = hasFilters
-            ? 'No pre-owned items found matching your filter. Request the item you need, or try changing your search or location.'
-            : 'No pre-owned items found – request the item you need.';
-          primaryBtn = {
-            label: '♻️ Request a Pre-owned Item →',
-            action: () => onNavigate('Post Pre-owned Request'),
-          };
-          secondaryBtn = {
-            label: '🏷️ Sell a Pre-owned Item →',
-            action: () => onNavigate('Sell Pre-owned Item'),
-          };
-        } else if (isService) {
-          icon = '⚙️';
-          title = 'No services found';
-          message = hasFilters
-            ? 'No services found matching your criteria. Try choosing another location or category, or post a request so local providers can reach out.'
-            : 'No services found – try another location or category, or post a request.';
-          primaryBtn = {
-            label: '⚙️ Post a Service Request →',
-            action: () => onNavigate('Post Service Request'),
-          };
-        }
+      {/* Results */}
+      {!loading && count > 0 && (
+        <ul className="dx-grid">
+          {displayedItems.map((item, i) => (
+            <DirectoryCard
+              key={item.id ?? i}
+              item={item}
+              index={i}
+              isFavorite={!!favorites[item.id]}
+              onOpen={onSelectItem}
+              onToggleFavorite={onToggleFavorite}
+            />
+          ))}
+        </ul>
+      )}
 
-        return (
-          <div style={{ textAlign: 'center', padding: '60px 20px', background: '#fff', borderRadius: 12, border: '1px solid var(--border)' }}>
-            <div style={{ fontSize: 36, marginBottom: 12 }}>{icon}</div>
-            <h3 style={{ fontSize: 18, marginBottom: 8, color: 'var(--brand-purple)' }}>{title}</h3>
-            <p style={{ color: 'var(--text-muted)', fontSize: 14, maxWidth: 520, margin: '8px auto 20px', lineHeight: 1.55 }}>
-              {message}
+      {/* Empty: nothing matches the filters, or nothing listed yet */}
+      {!loading && count === 0 && (
+        <div className="dx-empty">
+          <span className="dx-empty-icon" aria-hidden="true">
+            {hasFilters ? <Search size={30} strokeWidth={2} /> : <PageIcon size={30} strokeWidth={2} />}
+          </span>
+          <div className="dx-empty-text">
+            {!hasFilters && (
+              <p className="dx-empty-kicker">
+                <span className="dx-head-dot" aria-hidden="true" /> Just launching
+              </p>
+            )}
+            <h2 className="dx-empty-title">{hasFilters ? 'Nothing matches your search yet' : config.emptyTitle}</h2>
+            <p className="dx-empty-note">
+              {hasFilters
+                ? 'Try another word, area or category. Or post what you need, and providers nearby can come to you.'
+                : config.emptyNote}
             </p>
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
-              <button className="btn-lime" onClick={primaryBtn.action}>
-                {primaryBtn.label}
-              </button>
-              {secondaryBtn && (
-                <button className="btn-outline" onClick={secondaryBtn.action}>
-                  {secondaryBtn.label}
-                </button>
-              )}
-              {hasFilters && onResetFilters && (
-                <button className="btn-outline" onClick={onResetFilters}>
-                  Clear Filters
-                </button>
+            <div className="dx-empty-actions">
+              {hasFilters ? (
+                <>
+                  <button type="button" className="dx-btn dx-btn-royal" onClick={clearAll}>
+                    Clear filters
+                  </button>
+                  <button type="button" className="dx-btn dx-btn-outline" onClick={() => onNavigate('Post What I Need')}>
+                    <Megaphone size={16} aria-hidden="true" /> Post what I need
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button type="button" className="dx-btn dx-btn-lime" onClick={() => onNavigate(config.primary.target)}>
+                    {config.primary.label} <ArrowRight size={17} aria-hidden="true" />
+                  </button>
+                  <button type="button" className="dx-btn dx-btn-outline" onClick={() => onNavigate(config.secondary.target)}>
+                    {config.secondary.label}
+                  </button>
+                </>
               )}
             </div>
           </div>
-        );
-      })()}
+          <ul className="dx-empty-perks" aria-label="Why ECLAT CONNECT">
+            <li><BadgeCheck size={18} aria-hidden="true" /> Profiles reviewed before they go live</li>
+            <li><MessageCircle size={18} aria-hidden="true" /> Call or WhatsApp directly, no middleman</li>
+            <li><Tag size={18} aria-hidden="true" /> Free to use, no payment fees</li>
+          </ul>
+        </div>
+      )}
     </div>
   );
 };
+
