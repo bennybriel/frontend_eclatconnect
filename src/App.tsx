@@ -298,9 +298,11 @@ export const App: React.FC = () => {
     loadCatalogData({ q: '', location_id: '', category_id: '' });
   };
 
+  // Also reload once sign-in is confirmed: personal pages (workspace, my requests…) skip loading
+  // until then, so opening or refreshing them directly would otherwise leave them empty
   useEffect(() => {
     loadCatalogData();
-  }, [page, locationFilter, categoryFilter]);
+  }, [page, locationFilter, categoryFilter, isAuthenticated]);
 
   // Account activation links (?activate=TOKEN) open the sign-in page once the account is active
   useEffect(() => {
@@ -440,16 +442,21 @@ export const App: React.FC = () => {
     }
   };
 
+  // The vendor and artisan dashboard has its own sidebar, top bar and phone tab bar
+  const isPortalPage = page === 'Vendor Workspace' || page === 'Vendor Dashboard';
+
   return (
     <>
+      {!isPortalPage && (
       <Header
         currentPage={page}
         onNavigate={handleNavigate}
         onSearch={handleHeaderSearch}
         unreadCount={unreadCount}
       />
+      )}
 
-      <main className="main-content">
+      <main className={isPortalPage ? 'main-content is-portal' : 'main-content'}>
         <Toast notice={notice} onClose={() => setNotice(null)} />
 
         <Suspense
@@ -598,6 +605,7 @@ export const App: React.FC = () => {
             categories={categories}
             locations={locations}
             unreadCount={unreadCount}
+            notifications={notifications}
             onRefresh={() => {
               refreshUserData();
               loadCatalogData();
@@ -788,7 +796,7 @@ export const App: React.FC = () => {
       )}
 
       {/* Docked Mobile Bottom Navigation Bar (Visible on mobile viewports) */}
-      <MobileBottomNav currentPage={page} onNavigate={handleNavigate} />
+      {!isPortalPage && <MobileBottomNav currentPage={page} onNavigate={handleNavigate} />}
     </>
   );
 };

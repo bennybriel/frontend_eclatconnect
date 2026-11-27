@@ -1,5 +1,45 @@
 import React, { useState, useEffect } from 'react';
-import { Provider, Listing, ServiceRequest, Category, Location, ListingKind, Review, AvailabilityStatus } from '../types';
+import {
+  ArrowRight,
+  Bell,
+  Box,
+  Check,
+  ChevronLeft,
+  Eye,
+  EyeOff,
+  Globe,
+  Hourglass,
+  Images,
+  LayoutDashboard,
+  LifeBuoy,
+  Lightbulb,
+  Lock,
+  LogOut,
+  MapPin,
+  Megaphone,
+  Menu,
+  MessageCircle,
+  MessageSquareQuote,
+  Pencil,
+  Phone,
+  Plus,
+  RefreshCw,
+  Search,
+  Send,
+  Settings,
+  ShoppingCart,
+  Sparkles,
+  Star,
+  Store,
+  Tag,
+  Trash2,
+  UserRound,
+  Wrench,
+  X,
+} from 'lucide-react';
+import { VendorOverview } from './vendor/VendorOverview';
+import '../styles/vendor.css';
+import { Provider, Listing, ServiceRequest, Category, Location, ListingKind, Review, AvailabilityStatus, NotificationItem } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { request } from '../api/client';
 import { ImageUpload } from '../components/ImageUpload';
@@ -15,6 +55,7 @@ interface VendorWorkspacePageProps {
   categories: Category[];
   locations: Location[];
   unreadCount?: number;
+  notifications?: NotificationItem[];
   onRefresh: () => void;
   onNavigate: (page: string) => void;
   onRespondToRequest: (req: ServiceRequest) => void;
@@ -28,6 +69,7 @@ export const VendorWorkspacePage: React.FC<VendorWorkspacePageProps> = ({
   categories,
   locations,
   unreadCount = 0,
+  notifications = [],
   onRefresh,
   onNavigate,
   onRespondToRequest,
@@ -41,6 +83,20 @@ export const VendorWorkspacePage: React.FC<VendorWorkspacePageProps> = ({
   // Filter & Search states
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<'ALL' | 'ACTIVE' | 'HIDDEN'>('ALL');
+
+  // Phone menu, and the provider's own requests (what they need) for the overview
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [myRequests, setMyRequests] = useState<ServiceRequest[]>([]);
+  const [quotesReceived, setQuotesReceived] = useState(0);
+  useEffect(() => {
+    request<ServiceRequest[]>('/me/requests')
+      .then(d => setMyRequests(Array.isArray(d) ? d : []))
+      .catch(() => setMyRequests([]));
+    request<any[]>('/me/responses')
+      .then(d => setQuotesReceived(Array.isArray(d) ? d.length : 0))
+      .catch(() => setQuotesReceived(0));
+  }, []);
+  const myOpenRequestCount = myRequests.filter(r => r.request_type !== 'PREOWNED_SALE' && (!r.status || r.status === 'OPEN')).length;
 
   // Reviews State
   const [providerReviews, setProviderReviews] = useState<Review[]>([]);
@@ -432,982 +488,431 @@ export const VendorWorkspacePage: React.FC<VendorWorkspacePageProps> = ({
     );
   }
 
+  const onAdd = (kind: 'PRODUCT' | 'SERVICE' | 'PROJECT') => {
+    if (!isApproved) {
+      onToast('Your profile needs to be approved before you can add products, services or past work.', 'error');
+      return;
+    }
+    setItemKind(kind);
+    setActiveTab('upload');
+    setDrawerOpen(false);
+  };
+  const goTab = (tab: typeof activeTab) => {
+    setActiveTab(tab);
+    setDrawerOpen(false);
+    window.scrollTo({ top: 0 });
+  };
+  const goPage = (page: string) => {
+    setDrawerOpen(false);
+    onNavigate(page);
+  };
+  // The public page for this provider: /businesses?open=<id> or /artisans?open=<id>
+  const openPublicProfile = () => {
+    const url = `/${isArtisan ? 'artisans' : 'businesses'}?open=${encodeURIComponent(primaryProvider.id)}`;
+    window.history.pushState(null, '', url);
+    window.dispatchEvent(new PopStateEvent('popstate'));
+  };
+  const tabTitle: Record<string, string> = {
+    products: 'My products',
+    services: 'My services',
+    projects: isArtisan ? 'Portfolio and past work' : 'Showcase of my work',
+    upload: itemKind === 'PRODUCT' ? 'Add a product' : itemKind === 'SERVICE' ? 'Add a service' : 'Add past work',
+    leads: 'Customer requests',
+    reviews: 'Reviews and ratings',
+    settings: isArtisan ? 'My professional profile' : 'My business profile',
+  };
+  const initial = (primaryProvider.name || 'E').charAt(0).toUpperCase();
+  const NavBtn: React.FC<{ tab?: typeof activeTab; page?: string; icon: React.ReactNode; label: string; count?: number }> = ({ tab, page, icon, label, count }) => (
+    <button
+      type="button"
+      className={`vd-nav${tab && activeTab === tab ? ' is-on' : ''}`}
+      aria-current={tab && activeTab === tab ? 'page' : undefined}
+      onClick={() => (tab ? goTab(tab) : page ? goPage(page) : undefined)}
+    >
+      {icon}
+      <span>{label}</span>
+      {count ? <span className="vd-nav-count">{count > 99 ? '99+' : count}</span> : null}
+    </button>
+  );
+
   return (
-    <div className="portal-layout">
+    <div className="vd">
       {/* ======================================================== */}
-      {/* 1. PORTAL SIDEBAR NAVIGATION                             */}
+      {/* SIDEBAR (a slide-out menu on phones)                     */}
       {/* ======================================================== */}
-      <aside className="portal-sidebar">
-        <div>
-          {/* Sidebar Header */}
-          <div className="portal-sidebar-header">
-            <div className="portal-brand" onClick={() => onNavigate('Home')} style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 6 }}>
-              <EclatLogo light={true} size={30} />
-              <span className="portal-role-badge">
-                {isArtisan ? 'Artisan Portal' : 'Vendor Portal'}
-              </span>
-            </div>
-            <div style={{ marginTop: 14, fontSize: 13, color: '#d1d5db', display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{ width: 10, height: 10, borderRadius: '50%', background: isApproved ? '#22c55e' : '#f59e0b' }} />
-              <span style={{ fontWeight: 600 }}>
-                {isApproved
-                  ? (primaryProvider?.verified ? 'Verified & Live' : 'Approved & Live')
-                  : statusNotice.title}
-              </span>
-            </div>
+      <aside className={`vd-side${drawerOpen ? ' is-open' : ''}`} aria-label="Dashboard menu">
+        <div className="vd-side-logo" onClick={() => goPage('Home')} role="link" tabIndex={0} onKeyDown={e => e.key === 'Enter' && goPage('Home')}>
+          <EclatLogo light={true} size={34} />
+        </div>
+
+        <div className="vd-side-card">
+          <span className="vd-side-avatar">
+            {primaryProvider.image_url ? <img src={primaryProvider.image_url} alt="" /> : initial}
+          </span>
+          <div style={{ minWidth: 0 }}>
+            <span className="vd-side-name">{primaryProvider.name}</span>
+            <span className={`vd-side-badge${isApproved ? '' : ' is-wait'}`}>
+              {isApproved ? <Check size={11} strokeWidth={3.5} aria-hidden="true" /> : <Hourglass size={11} aria-hidden="true" />}
+              {isApproved ? `Approved ${isArtisan ? 'Professional' : 'Vendor'}` : statusNotice.badge}
+            </span>
           </div>
+        </div>
 
-          {/* Navigation Links */}
-          <nav className="portal-nav">
-            <div className="portal-nav-section-title">Core Management</div>
+        <nav aria-label="Overview">
+          <NavBtn tab="dashboard" icon={<LayoutDashboard size={19} />} label="Overview" />
+        </nav>
 
+        <p className="vd-side-label">What I offer</p>
+        <nav aria-label="What I offer">
+          <NavBtn tab="settings" icon={<Store size={19} />} label={isArtisan ? 'My professional profile' : 'My business profile'} />
+          {(!isArtisan || productCount > 0) && <NavBtn tab="products" icon={<Box size={19} />} label="My products" count={productCount} />}
+          <NavBtn tab="services" icon={<Wrench size={19} />} label="My services" count={serviceCount} />
+          <NavBtn tab="projects" icon={<Images size={19} />} label={isArtisan ? 'Portfolio / past work' : 'Work showcase'} count={projectCount} />
+          <NavBtn page="Sell Pre-owned Item" icon={<Tag size={19} />} label="Sell a used item" />
+        </nav>
+
+        <p className="vd-side-label">What I need</p>
+        <nav aria-label="What I need">
+          <NavBtn page="Products" icon={<Search size={19} />} label="Find products & services" />
+          <NavBtn page="Pre-owned" icon={<ShoppingCart size={19} />} label="Buy used items" />
+          <NavBtn page="My Requests" icon={<Send size={19} />} label="My requests" count={myOpenRequestCount} />
+          <NavBtn page="Responses" icon={<MessageSquareQuote size={19} />} label="Quotes I received" count={quotesReceived} />
+        </nav>
+
+        <p className="vd-side-label">Customers</p>
+        <nav aria-label="Customers">
+          <NavBtn tab="leads" icon={<Megaphone size={19} />} label="Customer requests" count={matchingLeadCount} />
+          <NavBtn tab="reviews" icon={<Star size={19} />} label="Reviews & ratings" count={totalReviewsCount} />
+          <NavBtn page="Notifications" icon={<Bell size={19} />} label="Notifications" count={unreadCount} />
+        </nav>
+
+        <div className="vd-side-foot">
+          <nav aria-label="More">
+            <NavBtn page="Home" icon={<Globe size={19} />} label="Back to marketplace" />
+            <a className="vd-nav-a" href="mailto:support@eclatconnect.com">
+              <LifeBuoy size={19} aria-hidden="true" /> <span>Help & support</span>
+            </a>
+            <NavBtn page="Account" icon={<Settings size={19} />} label="Account settings" />
             <button
-              className={`portal-nav-item ${activeTab === 'dashboard' ? 'active' : ''}`}
-              onClick={() => setActiveTab('dashboard')}
-            >
-              <span style={{ fontSize: 17 }}>📊</span>
-              <span>Dashboard Overview</span>
-            </button>
-
-            <button
-              className={`portal-nav-item ${activeTab === 'products' ? 'active' : ''}`}
-              onClick={() => setActiveTab('products')}
-            >
-              <span style={{ fontSize: 17 }}>🛍️</span>
-              <span>Products & Items ({productCount})</span>
-            </button>
-
-            <button
-              className={`portal-nav-item ${activeTab === 'services' ? 'active' : ''}`}
-              onClick={() => setActiveTab('services')}
-            >
-              <span style={{ fontSize: 17 }}>🔧</span>
-              <span>Skilled Services ({serviceCount})</span>
-            </button>
-
-            <button
-              className={`portal-nav-item ${activeTab === 'projects' ? 'active' : ''}`}
-              onClick={() => setActiveTab('projects')}
-            >
-              <span style={{ fontSize: 17 }}>📁</span>
-              <span>Project Showcase ({projectCount})</span>
-            </button>
-
-            <button
-              className={`portal-nav-item ${activeTab === 'upload' ? 'active' : ''}`}
+              type="button"
+              className="vd-nav"
               onClick={() => {
-                setItemKind(isArtisan ? 'SERVICE' : 'PRODUCT');
-                setActiveTab('upload');
+                logout();
+                onToast('You are signed out', 'info');
+                onNavigate('Home');
               }}
             >
-              <span style={{ fontSize: 17 }}>⚡</span>
-              <span>{isApproved ? '+ Upload / Add Item' : '🔒 + Upload / Add Item'}</span>
-            </button>
-
-            <div className="portal-nav-section-title" style={{ marginTop: 10 }}>Marketplace & Leads</div>
-
-            <button
-              className={`portal-nav-item ${activeTab === 'leads' ? 'active' : ''}`}
-              onClick={() => setActiveTab('leads')}
-            >
-              <span style={{ fontSize: 17 }}>💬</span>
-              <span>Customer Leads ({openRequests.length})</span>
-            </button>
-
-            <button
-              className={`portal-nav-item ${activeTab === 'reviews' ? 'active' : ''}`}
-              onClick={() => setActiveTab('reviews')}
-            >
-              <span style={{ fontSize: 17 }}>⭐</span>
-              <span>Customer Reviews ({totalReviewsCount})</span>
-            </button>
-
-            <button
-              className={`portal-nav-item ${activeTab === 'settings' ? 'active' : ''}`}
-              onClick={() => setActiveTab('settings')}
-            >
-              <span style={{ fontSize: 17 }}>⚙️</span>
-              <span>Store Profile</span>
-            </button>
-
-            <button
-              className="portal-nav-item"
-              onClick={() => onNavigate('Notifications')}
-            >
-              <span style={{ fontSize: 17 }}>🔔</span>
-              <span>Notifications {unreadCount > 0 ? `(${unreadCount})` : ''}</span>
+              <LogOut size={19} />
+              <span>Log out</span>
             </button>
           </nav>
         </div>
-
-        {/* Sidebar Footer */}
-        <div className="portal-sidebar-footer">
-          <button
-            className="btn-outline btn-sm"
-            style={{ color: '#fff', borderColor: 'rgba(255,255,255,0.2)', width: '100%', justifyContent: 'center' }}
-            onClick={() => onNavigate('Home')}
-          >
-            🌐 Back to Marketplace
-          </button>
-
-          <button
-            className="btn-danger btn-sm"
-            style={{ width: '100%', justifyContent: 'center' }}
-            onClick={() => {
-              logout();
-              onToast('Signed out of vendor portal', 'info');
-              onNavigate('Home');
-            }}
-          >
-            Sign Out
-          </button>
-        </div>
       </aside>
+      {drawerOpen && <div className="vd-scrim" onClick={() => setDrawerOpen(false)} aria-hidden="true" />}
 
-      {/* ======================================================== */}
-      {/* 2. PORTAL MAIN CONTENT PANEL                             */}
-      {/* ======================================================== */}
-      <main className="portal-main-panel">
-        {/* Topbar inside Portal */}
-        <div className="portal-topbar">
-          <div>
-            <div style={{ fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 700 }}>
-              {isArtisan ? 'ARTISAN PORTAL' : 'VENDOR PORTAL'} / {activeTab.toUpperCase()}
-            </div>
-            <h1 style={{ margin: '4px 0 0', fontSize: 22, fontWeight: 800 }}>
-              {activeTab === 'dashboard' && (isArtisan ? 'Artisan Dashboard Overview' : 'Vendor Dashboard Overview')}
-              {activeTab === 'products' && 'Products & Items Catalog'}
-              {activeTab === 'services' && 'Skilled Trade Services'}
-              {activeTab === 'projects' && 'Completed Projects & Portfolio Showcase'}
-              {activeTab === 'upload' && (itemKind === 'PRODUCT' ? 'Upload New Product / Item' : itemKind === 'SERVICE' ? 'Add New Skilled Service' : 'Add Project Portfolio Showcase')}
-              {activeTab === 'leads' && 'Campus Customer Leads in Ogbomoso'}
-              {activeTab === 'reviews' && 'Customer Reviews & Reputation'}
-              {activeTab === 'settings' && (isArtisan ? 'Artisan Profile & Trade Settings' : 'Store Profile & Business Settings')}
-            </h1>
-          </div>
-
-          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-            <button
-              className="btn-lime btn-sm"
-              style={{ fontWeight: 700, opacity: isApproved ? 1 : 0.6, cursor: isApproved ? 'pointer' : 'not-allowed' }}
-              onClick={() => {
-                if (!isApproved) {
-                  onToast('Your profile needs to be approved before uploading products.', 'error');
-                  return;
+      <div className="vd-body">
+        {/* ======================================================== */}
+        {/* TOP BAR                                                  */}
+        {/* ======================================================== */}
+        <header className="vd-top">
+          <button type="button" className="vd-top-menu" onClick={() => setDrawerOpen(true)} aria-label="Open menu">
+            <Menu size={22} />
+          </button>
+          <span className="vd-top-logo">
+            <EclatLogo light={true} size={30} />
+          </span>
+          <label className="vd-search">
+            <Search size={18} aria-hidden="true" />
+            <span className="vd-sr">Search your listings</span>
+            <input
+              type="search"
+              placeholder="Search your products, services and work…"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && !['products', 'services', 'projects'].includes(activeTab)) {
+                  setActiveTab(isArtisan ? 'services' : 'products');
                 }
-                setItemKind('PRODUCT');
-                setActiveTab('upload');
               }}
-            >
-              {isApproved ? '+ Upload Product' : '🔒 + Upload Product'}
+            />
+          </label>
+          <div className="vd-top-right">
+            <button type="button" className="vd-icon-btn" onClick={() => onNavigate('Notifications')} aria-label={`Notifications${unreadCount ? `, ${unreadCount} unread` : ''}`}>
+              <Bell size={20} />
+              {unreadCount > 0 && <span className="vd-dot">{unreadCount > 9 ? '9+' : unreadCount}</span>}
             </button>
-
-            <button
-              className="btn-outline btn-sm"
-              style={{ opacity: isApproved ? 1 : 0.6, cursor: isApproved ? 'pointer' : 'not-allowed' }}
-              onClick={() => {
-                if (!isApproved) {
-                  onToast('Your profile needs to be approved before adding services.', 'error');
-                  return;
-                }
-                setItemKind('SERVICE');
-                setActiveTab('upload');
-              }}
-            >
-              {isApproved ? '+ Add Service' : '🔒 + Add Service'}
-            </button>
-
-            <button
-              className="btn-outline btn-sm"
-              style={{ opacity: isApproved ? 1 : 0.6, cursor: isApproved ? 'pointer' : 'not-allowed' }}
-              onClick={() => {
-                if (!isApproved) {
-                  onToast('Your profile needs to be approved before adding projects.', 'error');
-                  return;
-                }
-                setItemKind('PROJECT');
-                setActiveTab('upload');
-              }}
-            >
-              {isApproved ? '+ Add Project' : '🔒 + Add Project'}
-            </button>
-
-            <button className="btn-outline btn-sm" onClick={() => onNavigate('Home')}>
-              Marketplace ↗
-            </button>
+            <span className="vd-user">
+              <span className="vd-side-avatar">{(user?.name || initial).charAt(0).toUpperCase()}</span>
+              <strong>{user?.name || primaryProvider.name}</strong>
+            </span>
           </div>
-        </div>
+        </header>
 
-        {/* Pending Final Administrator Approval Notification */}
-        {!isApproved ? (
-          <div
-            style={{
-              background: '#fffbeb',
-              border: '2px solid #f59e0b',
-              borderRadius: 12,
-              padding: '18px 22px',
-              marginBottom: 24,
-              display: 'flex',
-              gap: 16,
-              alignItems: 'center',
-              boxShadow: '0 4px 12px rgba(245, 158, 11, 0.10)',
-            }}
-          >
-            <div style={{ fontSize: 34, flexShrink: 0 }}>⏳</div>
-            <div style={{ flex: 1 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 4 }}>
-                <h3 style={{ margin: 0, color: '#92400e', fontSize: 17, fontWeight: 800 }}>
-                  {statusNotice.title}
-                </h3>
-                <span className="card-badge" style={{ background: '#fef3c7', color: '#92400e', fontWeight: 700, border: '1px solid #fde68a' }}>
-                  {statusNotice.badge}
-                </span>
-              </div>
-              <p style={{ margin: 0, fontSize: 14, color: '#78350f', lineHeight: 1.55 }}>
-                {statusNotice.text}
-                {(providerStatus === 'MORE_INFO' || providerStatus === 'REJECTED') && (
-                  <>
-                    {' '}
-                    <button
-                      type="button"
-                      onClick={() => onNavigate('Provider Application')}
-                      style={{ background: 'none', border: 'none', padding: 0, color: 'var(--brand-purple)', fontWeight: 700, textDecoration: 'underline', cursor: 'pointer', fontSize: 14 }}
-                    >
-                      Update my profile
-                    </button>
-                  </>
-                )}
-              </p>
-            </div>
-          </div>
-        ) : (
-          <div
-            style={{
-              background: '#f0fdf4',
-              border: '1.5px solid #bbf7d0',
-              borderRadius: 12,
-              padding: '12px 18px',
-              marginBottom: 22,
-              display: 'flex',
-              gap: 12,
-              alignItems: 'center',
-            }}
-          >
-            <div style={{ fontSize: 22 }}>✓</div>
-            <div style={{ fontSize: 13.5, color: '#166534' }}>
-              <strong>Approved & Live:</strong> Your {isArtisan ? 'campus artisan' : 'approved provider'} profile is approved and active on campus. You have full access to add, update, and manage your products, services, and project showcase!
-            </div>
-          </div>
-        )}
-
-        {/* ======================================================== */}
-        {/* VIEW 1: DASHBOARD (THE MAIN PORTAL HOME)                */}
-        {/* ======================================================== */}
-        {activeTab === 'dashboard' && (
-          <div>
-            {/* Welcome Banner */}
-            <div className="portal-welcome-banner">
-              <div>
-                <span style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--accent-lime)', fontWeight: 700 }}>
-                  Live Store Overview
-                </span>
-                <h2 style={{ margin: '6px 0 8px', fontSize: 24, color: '#fff' }}>
-                  Welcome back, {primaryProvider?.name || user?.name}! 👋
-                </h2>
-                <div style={{ fontSize: 14, color: '#f3e8ff', display: 'flex', flexWrap: 'wrap', gap: 14 }}>
-                  <span>📍 {primaryProvider?.location_area || primaryProvider?.location || 'Ogbomoso'}</span>
-                  <span>📞 {primaryProvider?.phone || user?.phone}</span>
-                  {primaryProvider?.whatsapp && <span>💬 WhatsApp: {primaryProvider.whatsapp}</span>}
-                </div>
-              </div>
-
-              <div style={{ textAlign: 'right' }}>
-                <span
-                  className="card-badge"
-                  style={{
-                    background: isApproved ? '#dcfce7' : '#fef3c7',
-                    color: isApproved ? '#166534' : '#92400e',
-                    fontSize: 13,
-                    padding: '6px 14px',
-                    fontWeight: 700,
-                  }}
-                >
-                  {isApproved
-                    ? (primaryProvider?.verified ? '✓ Verified Artisan & Live' : '✓ Approved Provider & Live')
-                    : `⏳ ${statusNotice.title}`}
-                </span>
-              </div>
-            </div>
-
-            {/* KPI Metric Cards Grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14, marginBottom: 24 }}>
-              <div
-                onClick={() => { setActiveTab('products'); setFilterStatus('ALL'); }}
-                style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 12, padding: '16px 18px', cursor: 'pointer', transition: 'all 0.15s ease' }}
-              >
-                <div style={{ fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600, letterSpacing: 0.5 }}>
-                  🛍️ Total Products
-                </div>
-                <div style={{ fontSize: 26, fontWeight: 800, color: 'var(--primary)', marginTop: 4 }}>
-                  {productCount}
-                </div>
-                <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>Physical items & goods</div>
-              </div>
-
-              <div
-                onClick={() => { setActiveTab('services'); setFilterStatus('ALL'); }}
-                style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 12, padding: '16px 18px', cursor: 'pointer', transition: 'all 0.15s ease' }}
-              >
-                <div style={{ fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600, letterSpacing: 0.5 }}>
-                  🔧 Total Services
-                </div>
-                <div style={{ fontSize: 26, fontWeight: 800, color: 'var(--primary)', marginTop: 4 }}>
-                  {serviceCount}
-                </div>
-                <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>Artisan & trade skills</div>
-              </div>
-
-              <div
-                onClick={() => { setActiveTab('projects'); setFilterStatus('ALL'); }}
-                style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 12, padding: '16px 18px', cursor: 'pointer', transition: 'all 0.15s ease' }}
-              >
-                <div style={{ fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600, letterSpacing: 0.5 }}>
-                  📁 Projects Portfolio
-                </div>
-                <div style={{ fontSize: 26, fontWeight: 800, color: 'var(--primary)', marginTop: 4 }}>
-                  {projectCount}
-                </div>
-                <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>Completed jobs & showcase</div>
-              </div>
-
-              <div
-                onClick={() => { setActiveTab('products'); setFilterStatus('ACTIVE'); }}
-                style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 12, padding: '16px 18px', cursor: 'pointer' }}
-              >
-                <div style={{ fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600, letterSpacing: 0.5 }}>
-                  🟢 Live in Catalog
-                </div>
-                <div style={{ fontSize: 26, fontWeight: 800, color: '#166534', marginTop: 4 }}>
-                  {activeCount}
-                </div>
-                <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>Active & discoverable</div>
-              </div>
-
-              <div
-                onClick={() => { setActiveTab('products'); setFilterStatus('HIDDEN'); }}
-                style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 12, padding: '16px 18px', cursor: 'pointer' }}
-              >
-                <div style={{ fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600, letterSpacing: 0.5 }}>
-                  ⚪ Hidden / Drafts
-                </div>
-                <div style={{ fontSize: 26, fontWeight: 800, color: '#6b7280', marginTop: 4 }}>
-                  {hiddenCount}
-                </div>
-                <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>Temporarily offline</div>
-              </div>
-
-              <div
-                onClick={() => setActiveTab('leads')}
-                style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 12, padding: '16px 18px', cursor: 'pointer' }}
-              >
-                <div style={{ fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600, letterSpacing: 0.5 }}>
-                  💬 Customer Leads
-                </div>
-                <div style={{ fontSize: 26, fontWeight: 800, color: '#b45309', marginTop: 4 }}>
-                  {openRequests.length}
-                </div>
-                <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>Open community requests</div>
-              </div>
-
-              <div
-                onClick={() => setActiveTab('reviews')}
-                style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 12, padding: '16px 18px', cursor: 'pointer', transition: 'all 0.15s ease' }}
-              >
-                <div style={{ fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600, letterSpacing: 0.5 }}>
-                  ⭐ Rating & Reviews
-                </div>
-                <div style={{ fontSize: 26, fontWeight: 800, color: '#b45309', marginTop: 4 }}>
-                  {totalReviewsCount > 0 ? `${avgProviderRating} ★` : 'No reviews'}
-                </div>
-                <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>
-                  {totalReviewsCount} review{totalReviewsCount === 1 ? '' : 's'}
-                </div>
-              </div>
-            </div>
-
-            {/* Quick Action Cards Strip */}
-            <div className="portal-quick-actions">
-              <div
-                className="portal-quick-btn"
-                onClick={() => {
-                  if (!isApproved) {
-                    onToast('Your profile needs to be approved before uploading products.', 'error');
-                    return;
-                  }
-                  setItemKind('PRODUCT');
-                  setActiveTab('upload');
-                }}
-              >
-                <span style={{ fontSize: 26 }}>🛍️</span>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: 14 }}>Upload Product</div>
-                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>List gadgets, books, fashion, groceries</div>
-                </div>
-              </div>
-
-              <div
-                className="portal-quick-btn"
-                onClick={() => {
-                  if (!isApproved) {
-                    onToast('Your profile needs to be approved before adding services.', 'error');
-                    return;
-                  }
-                  setItemKind('SERVICE');
-                  setActiveTab('upload');
-                }}
-              >
-                <span style={{ fontSize: 26 }}>🔧</span>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: 14 }}>Add Skilled Service</div>
-                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Offer repairs, tailoring, laundry, tutorials</div>
-                </div>
-              </div>
-
-              <div
-                className="portal-quick-btn"
-                onClick={() => {
-                  if (!isApproved) {
-                    onToast('Your profile needs to be approved before adding projects.', 'error');
-                    return;
-                  }
-                  setItemKind('PROJECT');
-                  setActiveTab('upload');
-                }}
-              >
-                <span style={{ fontSize: 26 }}>📁</span>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: 14 }}>Add Project Showcase</div>
-                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Showcase completed jobs & client work</div>
-                </div>
-              </div>
-
-              <div className="portal-quick-btn" onClick={() => setActiveTab('leads')}>
-                <span style={{ fontSize: 26 }}>💬</span>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: 14 }}>View Campus Leads</div>
-                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Answer requests from students in town</div>
-                </div>
-              </div>
-
-              <div className="portal-quick-btn" onClick={() => setActiveTab('reviews')}>
-                <span style={{ fontSize: 26 }}>⭐</span>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: 14 }}>Customer Reviews</div>
-                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Inspect feedback & ratings ({totalReviewsCount})</div>
-                </div>
-              </div>
-
-              <div className="portal-quick-btn" onClick={() => setActiveTab('settings')}>
-                <span style={{ fontSize: 26 }}>⚙️</span>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: 14 }}>Store Settings</div>
-                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Update store name, contact & location</div>
-                </div>
-              </div>
-            </div>
-
-            {/* Recent Catalog Preview */}
-            <div style={{ background: '#fff', borderRadius: 12, border: '1px solid var(--border)', padding: '20px 22px', marginBottom: 24 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-                <h3 style={{ margin: 0, fontSize: 17 }}>Recent Store Items</h3>
-                <button className="btn-outline btn-sm" onClick={() => setActiveTab('products')}>
-                  View All Items ({myListings.length}) →
-                </button>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {myListings.slice(0, 4).map(item => (
-                  <div
-                    key={item.id}
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      padding: '12px 14px',
-                      background: 'var(--ivory)',
-                      borderRadius: 8,
-                      border: '1px solid var(--border)',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                      <span style={{ fontSize: 20 }}>{item.kind === 'PRODUCT' ? '🛍️' : '🔧'}</span>
-                      <div>
-                        <strong>{item.name}</strong>
-                        <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                          {item.kind} · {item.price ? `₦${Number(item.price).toLocaleString()}` : 'Price on request'}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                      <span
-                        className="card-badge"
-                        style={{
-                          background: item.status === 'ACTIVE' ? '#dcfce7' : '#f3f4f6',
-                          color: item.status === 'ACTIVE' ? '#166534' : '#6b7280',
-                          fontSize: 11.5,
-                        }}
-                      >
-                        {item.status}
-                      </span>
-                      <button
-                        className="btn-outline btn-sm"
-                        style={{ padding: '4px 8px', fontSize: 12 }}
-                        onClick={() => handleToggleStatus(item)}
-                      >
-                        {item.status === 'ACTIVE' ? 'Hide' : 'Make Active'}
-                      </button>
-                    </div>
-                  </div>
-                ))}
-
-                {myListings.length === 0 && (
-                  <p style={{ color: 'var(--text-muted)', fontSize: 13.5, margin: '8px 0' }}>
-                    No items in your catalog yet. Use the upload button above to add your first product or trade service.
-                  </p>
-                )}
-              </div>
-            </div>
-
-            {/* Recent Leads Preview */}
-            <div style={{ background: '#fff', borderRadius: 12, border: '1px solid var(--border)', padding: '20px 22px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-                <h3 style={{ margin: 0, fontSize: 17 }}>Latest Community Service Requests</h3>
-                <button className="btn-outline btn-sm" onClick={() => setActiveTab('leads')}>
-                  View All Leads ({openRequests.length}) →
-                </button>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {openRequests.slice(0, 3).map(lead => (
-                  <div
-                    key={lead.id}
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      padding: '12px 14px',
-                      background: 'var(--ivory)',
-                      borderRadius: 8,
-                      border: '1px solid var(--border)',
-                    }}
-                  >
-                    <div>
-                      <span className="card-badge" style={{ fontSize: 11 }}>{lead.category || 'Request'}</span>
-                      <h4 style={{ margin: '4px 0 2px', fontSize: 14.5 }}>{lead.title}</h4>
-                      <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>📍 General Area: {lead.location_area || lead.location}</div>
-                    </div>
-                    <button className="btn-lime btn-sm" onClick={() => onRespondToRequest(lead)}>
-                      💰 Submit Quote
-                    </button>
-                  </div>
-                ))}
-
-                {openRequests.length === 0 && (
-                  <p style={{ color: 'var(--text-muted)', fontSize: 13.5, margin: '8px 0' }}>
-                    No open service requests right now. Check back soon!
-                  </p>
-                )}
-              </div>
-            </div>
-
-            {/* Recent Reviews Preview */}
-            <div style={{ background: '#fff', borderRadius: 12, border: '1px solid var(--border)', padding: '20px 22px', marginTop: 20 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <h3 style={{ margin: 0, fontSize: 17 }}>⭐ Recent Customer Reviews</h3>
-                  {totalReviewsCount > 0 && (
-                    <span style={{ fontSize: 12, fontWeight: 700, color: '#b45309', background: '#fef3c7', padding: '2px 8px', borderRadius: 4 }}>
-                      ★ {avgProviderRating} / 5.0
-                    </span>
-                  )}
-                </div>
-                <button className="btn-outline btn-sm" onClick={() => setActiveTab('reviews')}>
-                  View All Reviews ({totalReviewsCount}) →
-                </button>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {providerReviews.slice(0, 3).map(rev => (
-                  <div
-                    key={rev.id}
-                    style={{
-                      padding: '12px 14px',
-                      background: 'var(--ivory)',
-                      borderRadius: 8,
-                      border: '1px solid var(--border)',
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <strong>{rev.customer_name || 'Community member'}</strong>
-                      </div>
-                      <span style={{ color: '#eab308', fontSize: 14 }}>
-                        {'★'.repeat(rev.rating)}{'☆'.repeat(5 - rev.rating)}
-                      </span>
-                    </div>
-                    {rev.comment && <div style={{ fontSize: 13, color: '#475569', marginTop: 4 }}>"{rev.comment}"</div>}
-                  </div>
-                ))}
-
-                {providerReviews.length === 0 && (
-                  <p style={{ color: 'var(--text-muted)', fontSize: 13.5, margin: '8px 0' }}>
-                    No customer reviews yet. Once clients engage with your store or services, their reviews will appear here.
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ======================================================== */}
-        {/* VIEW 2, 3 & 4: PRODUCTS, SERVICES & PROJECTS CATALOGS   */}
-        {/* ======================================================== */}
-        {['products', 'services', 'projects'].includes(activeTab) && (
-          <div>
-            {/* Filter Bar */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
-              <div style={{ display: 'flex', gap: 10, flex: 1, minWidth: 260 }}>
-                <input
-                  type="text"
-                  placeholder={`Search ${activeTab === 'products' ? 'products & items' : activeTab === 'services' ? 'services' : 'projects'} by name, category, description...`}
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                  style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border)', fontSize: 13.5 }}
-                />
-                <select
-                  value={filterStatus}
-                  onChange={e => setFilterStatus(e.target.value as any)}
-                  style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border)', fontSize: 13 }}
-                >
-                  <option value="ALL">All Statuses</option>
-                  <option value="ACTIVE">🟢 Active Only</option>
-                  <option value="HIDDEN">⚪ Hidden Only</option>
-                </select>
-              </div>
-
-              <button
-                className="btn-lime btn-sm"
-                style={{ opacity: isApproved ? 1 : 0.6, cursor: isApproved ? 'pointer' : 'not-allowed' }}
-                onClick={() => {
-                  if (!isApproved) {
-                    onToast('Your profile needs to be approved before adding items, services, or projects.', 'error');
-                    return;
-                  }
-                  setItemKind(activeTab === 'services' ? 'SERVICE' : activeTab === 'projects' ? 'PROJECT' : 'PRODUCT');
-                  setActiveTab('upload');
-                }}
-              >
-                {isApproved
-                  ? `+ Add ${activeTab === 'services' ? 'Service' : activeTab === 'projects' ? 'Project' : 'Product'}`
-                  : `🔒 Add ${activeTab === 'services' ? 'Service' : activeTab === 'projects' ? 'Project' : 'Product'}`}
+        <main className="vd-main">
+          {activeTab !== 'dashboard' && (
+            <div className="vd-page-head">
+              <button type="button" className="vd-link" onClick={() => goTab('dashboard')}>
+                <ChevronLeft size={16} aria-hidden="true" /> Overview
               </button>
+              <h1 className="vd-page-title">{tabTitle[activeTab]}</h1>
             </div>
+          )}
 
-            {/* Listings Grid */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {filteredListings.map(item => (
-                <div
-                  key={item.id}
-                  className="item-card"
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    flexWrap: 'wrap',
-                    gap: 16,
-                    background: '#fff',
-                    border: '1px solid var(--border)',
-                    borderRadius: 10,
-                    padding: 16,
-                  }}
-                >
-                  <div style={{ display: 'flex', gap: 14, alignItems: 'center', flex: 1, minWidth: 280 }}>
-                    {item.image_url ? (
-                      <img
-                        src={item.image_url}
-                        alt={item.name}
-                        style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--border)', flexShrink: 0 }}
-                      />
-                    ) : (
-                      <div
-                        style={{
-                          width: 72,
-                          height: 72,
-                          borderRadius: 8,
-                          background: item.kind === 'PRODUCT' ? '#fdf2f8' : item.kind === 'SERVICE' ? '#eff6ff' : '#f0fdf4',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: 28,
-                          flexShrink: 0,
-                        }}
-                      >
-                        {item.kind === 'PRODUCT' ? '🛍️' : item.kind === 'SERVICE' ? '🔧' : '📁'}
-                      </div>
-                    )}
+          {activeTab !== 'dashboard' && !isApproved && (
+            <section className="vd-notice" role="status" style={{ marginBottom: 18 }}>
+              <span className="vd-notice-icon" aria-hidden="true"><Hourglass size={22} /></span>
+              <div>
+                <strong>{statusNotice.title}</strong>
+                <p>{statusNotice.text}</p>
+              </div>
+            </section>
+          )}
 
-                    <div>
-                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 4, flexWrap: 'wrap' }}>
-                        <span className="card-badge" style={{
-                          background: item.kind === 'PRODUCT' ? '#fdf2f8' : item.kind === 'SERVICE' ? '#eff6ff' : '#f0fdf4',
-                          color: item.kind === 'PRODUCT' ? '#9d174d' : item.kind === 'SERVICE' ? '#1e40af' : '#166534',
-                        }}>
-                          {item.kind === 'PRODUCT' ? '🛍️ Item / Product' : item.kind === 'SERVICE' ? '🔧 Service' : '📁 Project Showcase'}
-                        </span>
-                        <span
-                          className="card-badge"
-                          style={{
-                            background: item.status === 'ACTIVE' ? '#dcfce7' : '#f3f4f6',
-                            color: item.status === 'ACTIVE' ? '#166534' : '#6b7280',
-                            fontWeight: 600,
-                          }}
-                        >
-                          {item.status === 'ACTIVE' ? '🟢 Active (Live)' : '⚪ Hidden'}
-                        </span>
-                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Availability:</span>
-                          <AvailabilityBadge
-                            status={item.availability_status || 'AVAILABLE'}
-                            size="sm"
-                            interactive
-                            onStatusChange={(newStatus) => handleUpdateItemAvailability(item.id, newStatus)}
-                          />
-                        </div>
-                        {item.category_name && (
-                          <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                            🏷️ {item.category_name}
-                          </span>
-                        )}
-                        {item.location_area && (
-                          <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                            📍 {item.location_area}
-                          </span>
-                        )}
-                      </div>
+          {/* ======================================================== */}
+          {/* OVERVIEW                                                 */}
+          {/* ======================================================== */}
+          {activeTab === 'dashboard' && (
+            <VendorOverview
+              provider={primaryProvider}
+              userName={user?.name || ''}
+              isArtisan={isArtisan}
+              isApproved={isApproved}
+              statusNotice={statusNotice}
+              needsUpdate={providerStatus === 'MORE_INFO' || providerStatus === 'REJECTED'}
+              listings={myListings}
+              reviews={providerReviews}
+              avgRating={avgProviderRating}
+              leads={leadPool}
+              isMatchingLead={isMatchingLead}
+              myRequests={myRequests}
+              quotesReceived={quotesReceived}
+              notifications={notifications}
+              unreadCount={unreadCount}
+              onTab={goTab}
+              onAdd={onAdd}
+              onNavigate={onNavigate}
+              onOpenPublicProfile={openPublicProfile}
+              onRespondToRequest={onRespondToRequest}
+            />
+          )}
 
-                      <h3 style={{ margin: '2px 0 4px', fontSize: 16, fontWeight: 700 }}>{item.name}</h3>
-                      {item.description && (
-                        <p style={{ margin: '0 0 6px', fontSize: 13, color: '#4b5563', maxHeight: 38, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {item.description}
-                        </p>
-                      )}
-                      <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--primary)' }}>
-                        {item.price ? `₦${Number(item.price).toLocaleString()}` : 'Price on request / Negotiable'}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Action Buttons */}
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                    <button
-                      className="btn-outline btn-sm"
-                      style={{ opacity: isApproved ? 1 : 0.6, cursor: isApproved ? 'pointer' : 'not-allowed' }}
-                      onClick={() => handleToggleStatus(item)}
-                      title={isApproved ? "Toggle public visibility" : "Status updating locked: waiting for administrator approval"}
-                    >
-                      {isApproved ? (item.status === 'ACTIVE' ? '🙈 Hide' : '👁️ Make Active') : '🔒 Hide/Show'}
-                    </button>
-
-                    <button
-                      className="btn-outline btn-sm"
-                      style={{ opacity: isApproved ? 1 : 0.6, cursor: isApproved ? 'pointer' : 'not-allowed' }}
-                      onClick={() => handleOpenEdit(item)}
-                      title={isApproved ? "Edit item details" : "Editing locked: waiting for administrator approval"}
-                    >
-                      {isApproved ? '✏️ Edit' : '🔒 Edit'}
-                    </button>
-
-                    <button
-                      className="btn-outline btn-sm"
-                      style={{ color: '#dc2626', borderColor: '#fca5a5', opacity: isApproved ? 1 : 0.6, cursor: isApproved ? 'pointer' : 'not-allowed' }}
-                      onClick={() => {
-                        if (!isApproved) {
-                          onToast('Your profile needs to be approved before you can delete items.', 'error');
-                          return;
-                        }
-                        setItemToDelete(item);
-                      }}
-                      title={isApproved ? "Delete item" : "Deletion locked: waiting for administrator approval"}
-                    >
-                      {isApproved ? '🗑️ Delete' : '🔒 Delete'}
-                    </button>
-                  </div>
-                </div>
-              ))}
-
-              {filteredListings.length === 0 && (
-                <div style={{ textAlign: 'center', padding: '50px 20px', background: '#fff', borderRadius: 12, border: '1px solid var(--border)' }}>
-                  <div style={{ fontSize: 40, marginBottom: 12 }}>
-                    {activeTab === 'services' ? '🔧' : '🛍️'}
-                  </div>
-                  <h3 style={{ margin: '0 0 6px 0' }}>
-                    No {activeTab === 'services' ? 'services' : activeTab === 'products' ? 'products' : 'items'} found
-                  </h3>
-                  <p style={{ color: 'var(--text-muted)', fontSize: 13.5, margin: '0 0 16px 0' }}>
-                    {searchQuery || filterStatus !== 'ALL'
-                      ? 'Try adjusting your search query or filters.'
-                      : 'Start building your campus store catalog by uploading your first product or trade service.'}
-                  </p>
+        {/* ======================================================== */}
+        {/* PRODUCTS, SERVICES AND PAST WORK                         */}
+        {/* ======================================================== */}
+        {['products', 'services', 'projects'].includes(activeTab) && (() => {
+          const kindOfTab: ListingKind = activeTab === 'services' ? 'SERVICE' : activeTab === 'projects' ? 'PROJECT' : 'PRODUCT';
+          const word = activeTab === 'services' ? 'service' : activeTab === 'projects' ? 'past work' : 'product';
+          const subTabs = [
+            ...(!isArtisan || productCount > 0 ? [{ tab: 'products' as const, label: 'Products', count: productCount, icon: <Box size={16} /> }] : []),
+            { tab: 'services' as const, label: 'Services', count: serviceCount, icon: <Wrench size={16} /> },
+            { tab: 'projects' as const, label: isArtisan ? 'Past work' : 'Showcase', count: projectCount, icon: <Images size={16} /> },
+          ];
+          return (
+            <div className="vd-view">
+              <div className="vd-subtabs" role="tablist" aria-label="What you list">
+                {subTabs.map(t => (
                   <button
-                    className="btn-lime"
-                    style={{ opacity: isApproved ? 1 : 0.6, cursor: isApproved ? 'pointer' : 'not-allowed' }}
-                    onClick={() => {
-                      if (!isApproved) {
-                        onToast('Your profile needs to be approved before you can upload or add items.', 'error');
-                        return;
-                      }
-                      setItemKind(activeTab === 'services' ? 'SERVICE' : 'PRODUCT');
-                      setActiveTab('upload');
-                    }}
+                    key={t.tab}
+                    type="button"
+                    role="tab"
+                    aria-selected={activeTab === t.tab}
+                    className={activeTab === t.tab ? 'is-on' : ''}
+                    onClick={() => setActiveTab(t.tab)}
                   >
-                    + Add Your First {activeTab === 'services' ? 'Service' : 'Product'}
+                    {t.icon} {t.label} <span>{t.count}</span>
                   </button>
+                ))}
+              </div>
+
+              <div className="vd-toolbar">
+                <label className="vd-field-inline">
+                  <Search size={18} aria-hidden="true" />
+                  <span className="vd-sr">Search</span>
+                  <input
+                    type="search"
+                    placeholder={`Search your ${activeTab === 'projects' ? 'past work' : activeTab}…`}
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                  />
+                </label>
+                <div className="vd-seg" role="group" aria-label="Show">
+                  {(['ALL', 'ACTIVE', 'HIDDEN'] as const).map(st => (
+                    <button key={st} type="button" className={filterStatus === st ? 'is-on' : ''} aria-pressed={filterStatus === st} onClick={() => setFilterStatus(st)}>
+                      {st === 'ALL' ? 'All' : st === 'ACTIVE' ? 'Live' : 'Hidden'}
+                    </button>
+                  ))}
+                </div>
+                <button type="button" className="vd-btn vd-btn-lime" onClick={() => onAdd(kindOfTab)}>
+                  {isApproved ? <Plus size={17} aria-hidden="true" /> : <Lock size={15} aria-hidden="true" />} Add {word}
+                </button>
+              </div>
+
+              {filteredListings.length > 0 ? (
+                <ul className="vd-listings">
+                  {filteredListings.map(item => {
+                    const thumb = item.image_url || (item.images ? String(item.images).split(',')[0].trim() : '');
+                    return (
+                      <li key={item.id} className={`vd-listing${item.status === 'HIDDEN' ? ' is-hidden' : ''}`}>
+                        <div className="vd-listing-media">
+                          {thumb ? (
+                            <img src={thumb} alt="" loading="lazy" />
+                          ) : (
+                            <span aria-hidden="true">
+                              {item.kind === 'SERVICE' ? <Wrench size={34} /> : item.kind === 'PROJECT' ? <Images size={34} /> : <Box size={34} />}
+                            </span>
+                          )}
+                          <span className={`vd-live${item.status === 'ACTIVE' ? '' : ' is-off'}`}>
+                            {item.status === 'ACTIVE' ? 'Live' : 'Hidden'}
+                          </span>
+                        </div>
+                        <div className="vd-listing-body">
+                          <p className="vd-listing-meta">
+                            {[item.category_name || item.custom_category, item.location_area].filter(Boolean).join(' · ') || (item.kind === 'SERVICE' ? 'Service' : item.kind === 'PROJECT' ? 'Past work' : 'Product')}
+                          </p>
+                          <h3 className="vd-listing-title">{item.name}</h3>
+                          {item.description && <p className="vd-listing-desc">{item.description}</p>}
+                          <div className="vd-listing-row">
+                            <strong className="vd-listing-price">
+                              {item.kind === 'PROJECT' ? 'Portfolio' : item.price ? `₦${Number(item.price).toLocaleString('en-NG')}` : 'Price on request'}
+                            </strong>
+                            {item.kind !== 'PROJECT' && (
+                              <AvailabilityBadge
+                                status={item.availability_status || 'AVAILABLE'}
+                                size="sm"
+                                interactive
+                                onStatusChange={newStatus => handleUpdateItemAvailability(item.id, newStatus)}
+                              />
+                            )}
+                          </div>
+                        </div>
+                        <div className="vd-listing-actions">
+                          <button type="button" onClick={() => handleToggleStatus(item)} title={isApproved ? undefined : 'Available once your profile is approved'}>
+                            {item.status === 'ACTIVE' ? <EyeOff size={16} aria-hidden="true" /> : <Eye size={16} aria-hidden="true" />}
+                            {item.status === 'ACTIVE' ? 'Hide' : 'Show'}
+                          </button>
+                          <button type="button" onClick={() => handleOpenEdit(item)}>
+                            <Pencil size={16} aria-hidden="true" /> Edit
+                          </button>
+                          <button
+                            type="button"
+                            className="is-danger"
+                            onClick={() => {
+                              if (!isApproved) {
+                                onToast('Your profile needs to be approved before you can delete items.', 'error');
+                                return;
+                              }
+                              setItemToDelete(item);
+                            }}
+                          >
+                            <Trash2 size={16} aria-hidden="true" /> Delete
+                          </button>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : (
+                <div className="vd-empty-card">
+                  <span className="vd-empty-icon" aria-hidden="true">
+                    {activeTab === 'services' ? <Wrench size={30} /> : activeTab === 'projects' ? <Images size={30} /> : <Box size={30} />}
+                  </span>
+                  <h2>{searchQuery || filterStatus !== 'ALL' ? `No ${word} matches` : `No ${activeTab === 'projects' ? 'past work' : activeTab} yet`}</h2>
+                  <p>
+                    {searchQuery || filterStatus !== 'ALL'
+                      ? 'Try another word, or show all.'
+                      : activeTab === 'projects'
+                      ? 'Photos of jobs you have done help customers trust you and choose you.'
+                      : `Add your first ${word} so customers around LAUTECH and Ogbomoso can find it.`}
+                  </p>
+                  {searchQuery || filterStatus !== 'ALL' ? (
+                    <button type="button" className="vd-btn vd-btn-outline" onClick={() => { setSearchQuery(''); setFilterStatus('ALL'); }}>
+                      Show all
+                    </button>
+                  ) : (
+                    <button type="button" className="vd-btn vd-btn-lime" onClick={() => onAdd(kindOfTab)}>
+                      {isApproved ? <Plus size={17} aria-hidden="true" /> : <Lock size={15} aria-hidden="true" />} Add your first {word}
+                    </button>
+                  )}
                 </div>
               )}
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* ======================================================== */}
-        {/* VIEW 5: UPLOAD / ADD ITEM WIZARD                        */}
+        {/* ADD A PRODUCT, SERVICE OR PAST WORK                      */}
         {/* ======================================================== */}
         {activeTab === 'upload' && (
           !isApproved ? (
-            <section className="form-panel" style={{ background: '#fff', maxWidth: 760, margin: '0 auto', textAlign: 'center', padding: '48px 24px', border: '2px solid #fde68a', borderRadius: 12 }}>
-              <div style={{ fontSize: 48, marginBottom: 14 }}>⏳</div>
-              <h2 style={{ color: '#92400e', margin: '0 0 10px 0', fontSize: 22, fontWeight: 800 }}>
-                {statusNotice.title}
-              </h2>
-              <p style={{ maxWidth: 540, margin: '0 auto 20px', fontSize: 14.5, color: '#78350f', lineHeight: 1.6 }}>
-                {statusNotice.text}
-              </p>
-              <button className="btn-outline btn-sm" onClick={() => setActiveTab('dashboard')}>
-                ← Back to Dashboard Overview
-              </button>
-            </section>
+            <div className="vd-empty-card">
+              <span className="vd-empty-icon is-wait" aria-hidden="true"><Hourglass size={30} /></span>
+              <h2>{statusNotice.title}</h2>
+              <p>{statusNotice.text}</p>
+              <button type="button" className="vd-btn vd-btn-outline" onClick={() => goTab('dashboard')}>Back to overview</button>
+            </div>
           ) : (
-            <section className="form-panel" style={{ background: '#fff', maxWidth: 760, margin: '0 auto' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                <div>
-                  <h2 style={{ margin: 0, color: 'var(--primary)', fontSize: 20 }}>
-                    {itemKind === 'PRODUCT' ? '🛍️ Upload New Product / Item' : itemKind === 'SERVICE' ? '🔧 Add New Skilled Service' : '📁 Add Project Showcase'}
-                  </h2>
-                  <p style={{ margin: '4px 0 0 0', color: 'var(--text-muted)', fontSize: 13 }}>
-                    Fill out the details below to publish live to the campus catalog.
-                  </p>
-                </div>
-                <button className="btn-outline btn-sm" onClick={() => setActiveTab('dashboard')}>
-                  Cancel
-                </button>
-              </div>
-
-              <form onSubmit={handleUploadSubmit}>
-                {/* Kind Selector */}
-                <div className="form-group">
-                  <label>What are you listing? *</label>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, marginTop: 6 }}>
-                    <div
-                      onClick={() => setItemKind('PRODUCT')}
-                      style={{
-                        padding: '12px 16px',
-                        borderRadius: 8,
-                        border: itemKind === 'PRODUCT' ? '2px solid var(--primary)' : '1px solid var(--border)',
-                        background: itemKind === 'PRODUCT' ? '#fdf4ff' : '#fff',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      <div style={{ fontWeight: 700, fontSize: 14 }}>🛍️ Item / Product</div>
-                      <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
-                        Groceries, electronics, books, phones, clothes, gadgets
-                      </div>
-                    </div>
-
-                    <div
-                      onClick={() => setItemKind('SERVICE')}
-                      style={{
-                        padding: '12px 16px',
-                        borderRadius: 8,
-                        border: itemKind === 'SERVICE' ? '2px solid var(--primary)' : '1px solid var(--border)',
-                        background: itemKind === 'SERVICE' ? '#eff6ff' : '#fff',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      <div style={{ fontWeight: 700, fontSize: 14 }}>🔧 Skilled Service / Trade</div>
-                      <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
-                        Wiring, plumbing, laundry, tailoring, tutorials, design
-                      </div>
-                    </div>
-
-                    <div
-                      onClick={() => setItemKind('PROJECT')}
-                      style={{
-                        padding: '12px 16px',
-                        borderRadius: 8,
-                        border: itemKind === 'PROJECT' ? '2px solid var(--primary)' : '1px solid var(--border)',
-                        background: itemKind === 'PROJECT' ? '#f0fdf4' : '#fff',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      <div style={{ fontWeight: 700, fontSize: 14 }}>📁 Project Portfolio</div>
-                      <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
-                        Completed client jobs, sample installations, case studies
-                      </div>
-                    </div>
+            <div className="vd-form-wrap">
+              <form className="vd-card vd-form" onSubmit={handleUploadSubmit}>
+                <div className="vd-field">
+                  <span className="vd-label">What are you adding?</span>
+                  <div className="vd-kinds" role="radiogroup" aria-label="What are you adding">
+                    {([
+                      { k: 'PRODUCT', icon: <Box size={22} />, t: 'A product', d: 'Phones, books, food, clothes, gadgets' },
+                      { k: 'SERVICE', icon: <Wrench size={22} />, t: 'A service', d: 'Repairs, laundry, tailoring, hair, wiring' },
+                      { k: 'PROJECT', icon: <Images size={22} />, t: 'Past work', d: 'Photos of jobs you have finished' },
+                    ] as const).map(o => (
+                      <button
+                        key={o.k}
+                        type="button"
+                        role="radio"
+                        aria-checked={itemKind === o.k}
+                        className={`vd-kind${itemKind === o.k ? ' is-on' : ''}`}
+                        onClick={() => setItemKind(o.k)}
+                      >
+                        <span className="vd-kind-icon" aria-hidden="true">{o.icon}</span>
+                        <strong>{o.t}</strong>
+                        <span>{o.d}</span>
+                      </button>
+                    ))}
                   </div>
                 </div>
 
-                {/* Title / Name */}
-                <div className="form-group">
-                  <label>
-                    {itemKind === 'PRODUCT'
-                      ? 'Product / Item Name *'
-                      : itemKind === 'SERVICE'
-                      ? 'Service Title *'
-                      : 'Project / Portfolio Title *'}
+                <div className="vd-field">
+                  <label className="vd-label" htmlFor="vd-item-name">
+                    {itemKind === 'PRODUCT' ? 'Product name' : itemKind === 'SERVICE' ? 'Service name' : 'Title of the job'}
                   </label>
                   <input
+                    id="vd-item-name"
+                    className="vd-input"
                     required
                     placeholder={
                       itemKind === 'PRODUCT'
-                        ? 'e.g. Casio fx-991EX Scientific Calculator'
+                        ? 'e.g. Casio fx-991EX scientific calculator'
                         : itemKind === 'SERVICE'
-                        ? 'e.g. Hostel Wiring & Fan Installation'
-                        : 'e.g. Solar Inverter System Setup at Adenike Hostel'
+                        ? 'e.g. Hostel wiring and fan installation'
+                        : 'e.g. Solar inverter setup at a hostel in Adenike'
                     }
                     value={itemName}
                     onChange={e => setItemName(e.target.value)}
                   />
                 </div>
 
-                {/* Category & Campus Area */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }}>
+                <div className="vd-grid-2">
                   <CategorySelect
                     categories={categories}
                     listingType={itemKind === 'PRODUCT' ? 'PRODUCT' : 'SERVICE'}
                     value={itemCategoryId}
                     customCategory={itemCustomCategory}
-                    onChange={(id) => setItemCategoryId(id)}
+                    onChange={id => setItemCategoryId(id)}
                     onCustomCategoryChange={setItemCustomCategory}
                     required={false}
                     label="Category"
-                    placeholder="Select category"
+                    placeholder="Choose a category"
                   />
-
                   <div className="form-group">
-                    <label>Campus Area / Location</label>
-                    <select value={itemLocationId} onChange={e => setItemLocationId(e.target.value)}>
-                      <option value="">Select area</option>
+                    <label htmlFor="vd-item-area">Area</label>
+                    <select id="vd-item-area" value={itemLocationId} onChange={e => setItemLocationId(e.target.value)}>
+                      <option value="">Choose your area</option>
                       {locations.map(loc => (
                         <option key={loc.id} value={loc.id}>{loc.area} ({loc.landmark || 'Ogbomoso'})</option>
                       ))}
@@ -1415,509 +920,382 @@ export const VendorWorkspacePage: React.FC<VendorWorkspacePageProps> = ({
                   </div>
                 </div>
 
-                {/* Price & Price on Request */}
-                <div className="form-group">
-                  <label>Price (₦)</label>
-                  <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      placeholder="e.g. 15000"
-                      disabled={priceOnRequest}
-                      value={priceOnRequest ? '' : itemPrice}
-                      onChange={e => setItemPrice(e.target.value)}
-                      style={{ flex: 1 }}
-                    />
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                      <input
-                        type="checkbox"
-                        checked={priceOnRequest}
-                        onChange={e => setPriceOnRequest(e.target.checked)}
-                      />
-                      Price on request / Negotiable
-                    </label>
+                {itemKind !== 'PROJECT' && (
+                  <div className="vd-field">
+                    <label className="vd-label" htmlFor="vd-item-price">Price</label>
+                    <div className="vd-price">
+                      <div className={`vd-input-icon${priceOnRequest ? ' is-off' : ''}`}>
+                        <span aria-hidden="true">₦</span>
+                        <input
+                          id="vd-item-price"
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          placeholder="15000"
+                          disabled={priceOnRequest}
+                          value={priceOnRequest ? '' : itemPrice}
+                          onChange={e => setItemPrice(e.target.value)}
+                        />
+                      </div>
+                      <label className="vd-switch">
+                        <input type="checkbox" checked={priceOnRequest} onChange={e => setPriceOnRequest(e.target.checked)} />
+                        <span className="vd-switch-track" aria-hidden="true" />
+                        Price on request
+                      </label>
+                    </div>
                   </div>
+                )}
+
+                <div className="vd-field">
+                  <MultiImageUpload
+                    label={itemKind === 'PRODUCT' ? 'Photos of the product (up to 5)' : itemKind === 'PROJECT' ? 'Photos of the finished job (up to 5)' : 'Photos of your work (up to 5)'}
+                    hint={
+                      itemKind === 'PRODUCT'
+                        ? 'The first photo is the cover. Show it from different angles in good light.'
+                        : itemKind === 'PROJECT'
+                        ? 'Before and after photos work really well.'
+                        : 'Show examples of your work or happy customers.'
+                    }
+                    maxImages={5}
+                    value={itemImages}
+                    onChange={imgs => {
+                      setItemImages(imgs);
+                      const first = imgs.split(',')[0];
+                      if (first) setItemImageUrl(first);
+                    }}
+                  />
                 </div>
 
-                {/* Multi-Image Upload (Storefront / Products / Artisan Skill Showcase) */}
-                <MultiImageUpload
-                  label={
-                    itemKind === 'PRODUCT'
-                      ? 'Product Photos (Cover photo + Gallery pictures) 📷'
-                      : itemKind === 'PROJECT'
-                      ? 'Artisan Past Works Showcase (Portfolio Photos) 🛠️'
-                      : 'Service Photos & Samples (Up to 5 pictures) 💼'
-                  }
-                  hint={
-                    itemKind === 'PRODUCT'
-                      ? 'Upload up to 5 photos showing your product from different angles, tags, and in use.'
-                      : itemKind === 'PROJECT'
-                      ? 'Upload up to 5 pictures of your previous work, finished craft, repair, haircut, or tailoring to showcase your skill to clients.'
-                      : 'Upload pictures demonstrating your service or previous happy clients.'
-                  }
-                  maxImages={5}
-                  value={itemImages}
-                  onChange={imgs => {
-                    setItemImages(imgs);
-                    const first = imgs.split(',')[0];
-                    if (first) setItemImageUrl(first);
-                  }}
-                />
-
-                {/* Description */}
-                <div className="form-group">
-                  <label>Description & Details</label>
+                <div className="vd-field">
+                  <label className="vd-label" htmlFor="vd-item-desc">Description</label>
                   <textarea
+                    id="vd-item-desc"
+                    className="vd-input vd-textarea"
                     rows={4}
-                    placeholder="Describe key features, condition, warranty, turnaround time, or special instructions..."
+                    placeholder="Key features, condition, how long it takes, what is included, delivery…"
                     value={itemDescription}
                     onChange={e => setItemDescription(e.target.value)}
                   />
                 </div>
 
-                <button
-                  type="submit"
-                  className="btn-lime"
-                  style={{ width: '100%', padding: '14px', fontSize: 15, fontWeight: 700 }}
-                  disabled={isUploading}
-                >
-                  {isUploading ? 'Publishing Item...' : `✓ Publish ${itemKind === 'PRODUCT' ? 'Product' : itemKind === 'SERVICE' ? 'Service' : 'Project'} Now →`}
-                </button>
+                <div className="vd-form-foot">
+                  <button type="button" className="vd-btn vd-btn-outline" onClick={() => goTab(itemKind === 'SERVICE' ? 'services' : itemKind === 'PROJECT' ? 'projects' : 'products')}>
+                    Cancel
+                  </button>
+                  <button type="submit" className="vd-btn vd-btn-lime" disabled={isUploading}>
+                    {isUploading ? 'Publishing…' : <>Publish {itemKind === 'PRODUCT' ? 'product' : itemKind === 'SERVICE' ? 'service' : 'past work'} <ArrowRight size={17} aria-hidden="true" /></>}
+                  </button>
+                </div>
               </form>
-            </section>
+
+              <aside className="vd-card vd-hints">
+                <h2><Lightbulb size={18} aria-hidden="true" /> What gets more customers</h2>
+                <ul>
+                  <li><Check size={15} aria-hidden="true" /> A clear name people would search for</li>
+                  <li><Check size={15} aria-hidden="true" /> Real photos, the first one sharp and bright</li>
+                  <li><Check size={15} aria-hidden="true" /> A price, or "price on request" if it varies</li>
+                  <li><Check size={15} aria-hidden="true" /> Your area, so nearby customers find you</li>
+                  <li><Check size={15} aria-hidden="true" /> A few honest lines in the description</li>
+                </ul>
+              </aside>
+            </div>
           )
         )}
 
         {/* ======================================================== */}
-        {/* VIEW 5: STUDENT SERVICE LEADS IN OGBOMOSO                */}
+        {/* CUSTOMER REQUESTS                                        */}
         {/* ======================================================== */}
         {activeTab === 'leads' && (
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <div>
-                <h3 style={{ margin: 0 }}>Customer requests</h3>
-                <p style={{ margin: '4px 0 0', color: 'var(--text-muted)', fontSize: 13 }}>
-                  Open requests from students and residents. Requests in your category are listed first.
-                </p>
-              </div>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-                <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer' }}>
-                  <input
-                    type="checkbox"
-                    checked={onlyMatchingLeads}
-                    onChange={e => setOnlyMatchingLeads(e.target.checked)}
-                  />
-                  Only my category ({matchingLeadCount})
-                </label>
-                <button className="btn-outline btn-sm" onClick={onRefresh}>
-                  🔄 Refresh
+          <div className="vd-view">
+            <div className="vd-toolbar">
+              <div className="vd-seg" role="group" aria-label="Which requests">
+                <button type="button" className={!onlyMatchingLeads ? 'is-on' : ''} aria-pressed={!onlyMatchingLeads} onClick={() => setOnlyMatchingLeads(false)}>
+                  All <span>{leadPool.length}</span>
+                </button>
+                <button type="button" className={onlyMatchingLeads ? 'is-on' : ''} aria-pressed={onlyMatchingLeads} onClick={() => setOnlyMatchingLeads(true)}>
+                  In my category <span>{matchingLeadCount}</span>
                 </button>
               </div>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              {openRequests.map(lead => (
-                <div key={lead.id} className="item-card" style={{ background: '#fff' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 10 }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 4 }}>
-                        <span className="card-badge">{lead.category || lead.category_name || 'Request'}</span>
-                        {isMatchingLead(lead) && (
-                          <span className="card-badge" style={{ background: '#ecfccb', color: '#3f6212' }}>Matches your category</span>
-                        )}
-                        <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>📍 General Area: {lead.location_area || lead.location}</span>
-                      </div>
-                      <h4 style={{ margin: '4px 0', fontSize: 16 }}>{lead.title}</h4>
-                      <p style={{ margin: '4px 0 10px', fontSize: 13.5, color: '#4b5563' }}>{lead.description}</p>
-                      <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                        Requested by: <strong>{lead.customer_name || 'Community Member'}</strong>
-                      </div>
-                    </div>
-
-                    {lead.budget && (
-                      <div style={{ textAlign: 'right' }}>
-                        <small style={{ color: 'var(--text-muted)' }}>Customer Budget:</small>
-                        <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--primary)' }}>
-                          ₦{Number(lead.budget).toLocaleString()}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <div style={{ marginTop: 14, borderTop: '1px solid #f0f0f0', paddingTop: 10, display: 'flex', justifyContent: 'flex-end' }}>
-                    <button className="btn-lime btn-sm" onClick={() => onRespondToRequest(lead)}>
-                      💰 Submit Quote / Offer →
-                    </button>
-                  </div>
-                </div>
-              ))}
-
-              {openRequests.length === 0 && (
-                <div style={{ textAlign: 'center', padding: '50px 20px', background: '#fff', borderRadius: 12, border: '1px solid var(--border)' }}>
-                  <p style={{ color: 'var(--text-muted)', margin: 0 }}>{onlyMatchingLeads ? 'No open requests in your category right now.' : 'No open customer requests right now.'}</p>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* ======================================================== */}
-        {/* VIEW 6: CUSTOMER REVIEWS & REPUTATION                    */}
-        {/* ======================================================== */}
-        {activeTab === 'reviews' && (
-          <div>
-            {/* Reputation Overview Banner */}
-            <div
-              style={{
-                background: '#fff',
-                border: '1px solid var(--border)',
-                borderRadius: 14,
-                padding: '24px 28px',
-                marginBottom: 20,
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                flexWrap: 'wrap',
-                gap: 20,
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-                <div
-                  style={{
-                    width: 76,
-                    height: 76,
-                    borderRadius: 16,
-                    background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    border: '1px solid #fcd34d',
-                    flexShrink: 0,
-                  }}
-                >
-                  <span style={{ fontSize: 26, fontWeight: 900, color: '#78350f', lineHeight: 1 }}>
-                    {totalReviewsCount > 0 ? avgProviderRating : '-'}
-                  </span>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: '#b45309', marginTop: 2 }}>
-                    ★ ★ ★ ★ ★
-                  </span>
-                </div>
-
-                <div>
-                  <h2 style={{ margin: 0, fontSize: 20, color: 'var(--primary)' }}>
-                    Customer Reviews & Store Reputation
-                  </h2>
-                  <p style={{ margin: '4px 0 0', color: 'var(--text-muted)', fontSize: 13.5 }}>
-                    {totalReviewsCount > 0
-                      ? `Based on ${totalReviewsCount} customer review${totalReviewsCount === 1 ? '' : 's'}`
-                      : 'Build your campus reputation by providing great products and reliable services.'}
-                  </p>
-                </div>
-              </div>
-
-              <button className="btn-outline btn-sm" onClick={loadProviderReviews} disabled={loadingReviews}>
-                {loadingReviews ? 'Refreshing...' : '🔄 Refresh Reviews'}
+              <p className="vd-toolbar-note">Requests in your category come first. Send a quote to win the job.</p>
+              <button type="button" className="vd-btn vd-btn-outline" onClick={onRefresh}>
+                <RefreshCw size={16} aria-hidden="true" /> Refresh
               </button>
             </div>
 
-            {/* Filter Pills */}
-            <div style={{ display: 'flex', gap: 8, overflowX: 'auto', marginBottom: 18, paddingBottom: 4 }}>
-              {(['ALL', 5, 4, 3, 2, 1] as const).map(f => {
-                const count = f === 'ALL'
-                  ? providerReviews.length
-                  : providerReviews.filter(r => r.rating === f).length;
-                return (
-                  <button
-                    key={String(f)}
-                    onClick={() => setReviewFilterRating(f)}
-                    style={{
-                      padding: '6px 14px',
-                      borderRadius: 20,
-                      border: '1px solid',
-                      borderColor: reviewFilterRating === f ? 'var(--primary)' : 'var(--border)',
-                      background: reviewFilterRating === f ? 'var(--primary)' : '#fff',
-                      color: reviewFilterRating === f ? 'var(--accent-lime)' : 'var(--charcoal)',
-                      fontSize: 13,
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {f === 'ALL' ? `All Reviews (${count})` : `${f} Stars (${count})`}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Reviews Cards List */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {providerReviews
-                .filter(r => reviewFilterRating === 'ALL' || r.rating === reviewFilterRating)
-                .map(rev => (
-                  <div
-                    key={rev.id}
-                    style={{
-                      background: '#fff',
-                      border: '1px solid var(--border)',
-                      borderRadius: 10,
-                      padding: '16px 20px',
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, flexWrap: 'wrap', gap: 8 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <div
-                          style={{
-                            width: 34,
-                            height: 34,
-                            borderRadius: '50%',
-                            background: 'var(--primary)',
-                            color: '#fff',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: 14,
-                            fontWeight: 700,
-                          }}
-                        >
-                          {(rev.customer_name || 'C').charAt(0).toUpperCase()}
-                        </div>
-                        <div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <strong>{rev.customer_name || 'Community Customer'}</strong>
-                          </div>
-                          <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                            {new Date(rev.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div style={{ textAlign: 'right' }}>
-                        <div style={{ color: '#eab308', fontSize: 16 }}>
-                          {'★'.repeat(rev.rating)}{'☆'.repeat(5 - rev.rating)}
-                        </div>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: '#854d0e' }}>
-                          {rev.rating}.0 / 5.0
-                        </div>
-                      </div>
+            {openRequests.length > 0 ? (
+              <ul className="vd-leads">
+                {openRequests.map(lead => (
+                  <li key={lead.id} className={`vd-lead${isMatchingLead(lead) ? ' is-match' : ''}`}>
+                    <div className="vd-lead-top">
+                      <span className="vd-tag is-open">{lead.custom_category || lead.category || lead.category_name || 'Request'}</span>
+                      {isMatchingLead(lead) && <span className="vd-tag is-match"><Sparkles size={12} aria-hidden="true" /> Your category</span>}
                     </div>
-
-                    {rev.comment && (
-                      <p style={{ margin: '8px 0 0', fontSize: 14, color: '#334155', lineHeight: 1.5, background: '#f8fafc', padding: '10px 14px', borderRadius: 6 }}>
-                        "{rev.comment}"
-                      </p>
-                    )}
-                  </div>
+                    <h3>{lead.title}</h3>
+                    {lead.description && <p className="vd-lead-desc">{lead.description}</p>}
+                    <p className="vd-lead-meta">
+                      <span><MapPin size={14} aria-hidden="true" /> {lead.location_area || lead.location}</span>
+                      <span><UserRound size={14} aria-hidden="true" /> {lead.customer_name || 'A customer'}</span>
+                    </p>
+                    <div className="vd-lead-foot">
+                      <div>
+                        <span className="vd-lead-label">Budget</span>
+                        <strong>{lead.budget ? `₦${Number(lead.budget).toLocaleString('en-NG')}` : 'Open to offers'}</strong>
+                      </div>
+                      <button type="button" className="vd-btn vd-btn-lime" onClick={() => onRespondToRequest(lead)}>
+                        Send a quote <ArrowRight size={16} aria-hidden="true" />
+                      </button>
+                    </div>
+                  </li>
                 ))}
-
-              {providerReviews.filter(r => reviewFilterRating === 'ALL' || r.rating === reviewFilterRating).length === 0 && (
-                <div style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 10, padding: '40px 20px', textAlign: 'center' }}>
-                  <div style={{ fontSize: 40, marginBottom: 10 }}>⭐</div>
-                  <h3 style={{ margin: '0 0 6px 0' }}>No Reviews in this Category</h3>
-                  <p style={{ color: 'var(--text-muted)', fontSize: 13.5, margin: 0 }}>
-                    {providerReviews.length === 0
-                      ? 'You have not received any customer reviews yet. Reviews from buyers and clients will appear here.'
-                      : 'No reviews found with the selected star filter.'}
-                  </p>
-                </div>
-              )}
-            </div>
+              </ul>
+            ) : (
+              <div className="vd-empty-card">
+                <span className="vd-empty-icon" aria-hidden="true"><Megaphone size={30} /></span>
+                <h2>{onlyMatchingLeads ? 'No requests in your category right now' : 'No open requests right now'}</h2>
+                <p>New requests from students and residents will appear here. Check back soon.</p>
+                {onlyMatchingLeads && (
+                  <button type="button" className="vd-btn vd-btn-outline" onClick={() => setOnlyMatchingLeads(false)}>See all requests</button>
+                )}
+              </div>
+            )}
           </div>
         )}
 
         {/* ======================================================== */}
-        {/* VIEW 7: STORE PROFILE SETTINGS                           */}
+        {/* REVIEWS AND RATINGS                                      */}
+        {/* ======================================================== */}
+        {activeTab === 'reviews' && (() => {
+          const dist = [5, 4, 3, 2, 1].map(n => ({ n, c: providerReviews.filter(r => r.rating === n).length }));
+          const shownReviews = providerReviews.filter(r => reviewFilterRating === 'ALL' || r.rating === reviewFilterRating);
+          return (
+            <div className="vd-view">
+              <section className="vd-card vd-rating">
+                <div className="vd-rating-big">
+                  <strong>{totalReviewsCount > 0 ? avgProviderRating : '–'}</strong>
+                  <span className="vd-stars" aria-label={`${avgProviderRating} out of 5`}>
+                    {[1, 2, 3, 4, 5].map(i => (
+                      <Star key={i} size={18} className={totalReviewsCount > 0 && i <= Math.round(Number(avgProviderRating)) ? 'is-on' : ''} aria-hidden="true" />
+                    ))}
+                  </span>
+                  <span className="vd-rating-count">
+                    {totalReviewsCount > 0 ? `${totalReviewsCount} review${totalReviewsCount === 1 ? '' : 's'}` : 'No reviews yet'}
+                  </span>
+                </div>
+                <div className="vd-dist">
+                  {dist.map(d => (
+                    <div key={d.n} className="vd-dist-row">
+                      <span>{d.n}<Star size={12} aria-hidden="true" /></span>
+                      <span className="vd-dist-bar"><i style={{ width: `${totalReviewsCount ? (d.c / totalReviewsCount) * 100 : 0}%` }} /></span>
+                      <span>{d.c}</span>
+                    </div>
+                  ))}
+                </div>
+                <button type="button" className="vd-btn vd-btn-outline" onClick={loadProviderReviews} disabled={loadingReviews}>
+                  <RefreshCw size={16} aria-hidden="true" /> {loadingReviews ? 'Refreshing…' : 'Refresh'}
+                </button>
+              </section>
+
+              <div className="vd-seg vd-seg-wrap" role="group" aria-label="Filter by stars">
+                {(['ALL', 5, 4, 3, 2, 1] as const).map(f => (
+                  <button key={String(f)} type="button" className={reviewFilterRating === f ? 'is-on' : ''} aria-pressed={reviewFilterRating === f} onClick={() => setReviewFilterRating(f)}>
+                    {f === 'ALL' ? 'All' : <>{f} <Star size={12} aria-hidden="true" /></>}
+                    <span>{f === 'ALL' ? providerReviews.length : dist.find(d => d.n === f)?.c}</span>
+                  </button>
+                ))}
+              </div>
+
+              {shownReviews.length > 0 ? (
+                <ul className="vd-reviews">
+                  {shownReviews.map(rev => (
+                    <li key={rev.id} className="vd-review">
+                      <div className="vd-review-head">
+                        <span className="vd-side-avatar" aria-hidden="true">{(rev.customer_name || 'C').charAt(0).toUpperCase()}</span>
+                        <div>
+                          <strong>{rev.customer_name || 'A customer'}</strong>
+                          <span>{new Date(rev.created_at).toLocaleDateString('en-NG', { year: 'numeric', month: 'short', day: 'numeric' })}</span>
+                        </div>
+                        <span className="vd-stars" aria-label={`${rev.rating} out of 5`}>
+                          {[1, 2, 3, 4, 5].map(i => (
+                            <Star key={i} size={16} className={i <= rev.rating ? 'is-on' : ''} aria-hidden="true" />
+                          ))}
+                        </span>
+                      </div>
+                      {rev.comment && <p>“{rev.comment}”</p>}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <div className="vd-empty-card">
+                  <span className="vd-empty-icon" aria-hidden="true"><Star size={30} /></span>
+                  <h2>{providerReviews.length === 0 ? 'No reviews yet' : 'No reviews with that rating'}</h2>
+                  <p>
+                    {providerReviews.length === 0
+                      ? 'After you serve a customer, ask them to leave a review. It helps the next customer choose you.'
+                      : 'Try another filter.'}
+                  </p>
+                </div>
+              )}
+            </div>
+          );
+        })()}
+
+        {/* ======================================================== */}
+        {/* PROFILE SETTINGS                                         */}
         {/* ======================================================== */}
         {activeTab === 'settings' && (
-          <section className="form-panel" style={{ background: '#fff', maxWidth: 760, margin: '0 auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-              <div>
-                <h2 style={{ margin: 0, color: 'var(--primary)', fontSize: 20 }}>Store Profile Settings</h2>
-                <p style={{ margin: '4px 0 0 0', color: 'var(--text-muted)', fontSize: 13 }}>
-                  Update your business identity, contact channels, and campus location.
-                </p>
+          <div className="vd-form-wrap">
+            <form className="vd-card vd-form" onSubmit={handleSaveProfile}>
+              <h2 className="vd-form-section">About {isArtisan ? 'you' : 'your business'}</h2>
+              <div className="vd-field">
+                <label className="vd-label" htmlFor="vd-p-name">{isArtisan ? 'Name or trade name' : 'Business name'}</label>
+                <input id="vd-p-name" className="vd-input" required value={profileName} onChange={e => setProfileName(e.target.value)} />
               </div>
-              <button className="btn-outline btn-sm" onClick={() => setActiveTab('dashboard')}>
-                Cancel
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveProfile}>
-              <div className="form-group">
-                <label>Business / Trade Name *</label>
-                <input
-                  required
-                  value={profileName}
-                  onChange={e => setProfileName(e.target.value)}
-                />
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }}>
-                <div className="form-group">
-                  <label>Primary Phone Number *</label>
-                  <input
-                    required
-                    value={profilePhone}
-                    onChange={e => setProfilePhone(e.target.value)}
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label>WhatsApp Number</label>
-                  <input
-                    placeholder="e.g. 08031112233"
-                    value={profileWhatsapp}
-                    onChange={e => setProfileWhatsapp(e.target.value)}
-                  />
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }}>
-                <CategorySelect
-                  categories={categories}
-                  listingType={primaryProvider?.type === 'PROFESSIONAL' ? 'ARTISAN' : 'BUSINESS'}
-                  value={profileCategoryId}
-                  customCategory={profileCustomCategory}
-                  onChange={(id) => setProfileCategoryId(id)}
-                  onCustomCategoryChange={setProfileCustomCategory}
-                  required={false}
-                  label="Primary Category"
-                  placeholder="Select category"
-                />
-
-                <div className="form-group">
-                  <label>Campus Area</label>
-                  <select value={profileLocationId} onChange={e => setProfileLocationId(e.target.value)}>
-                    <option value="">Select area</option>
-                    {locations.map(loc => (
-                      <option key={loc.id} value={loc.id}>{loc.area}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div className="form-group">
-                <label>Address / Location Details</label>
-                <input
-                  value={profileLocation}
-                  onChange={e => setProfileLocation(e.target.value)}
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Nearby Landmark</label>
-                <input
-                  placeholder="e.g. Opposite LAUTECH Second Gate, Behind Bovas"
-                  value={profileLandmark}
-                  onChange={e => setProfileLandmark(e.target.value)}
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Business Bio / Description</label>
+              <CategorySelect
+                categories={categories}
+                listingType={primaryProvider?.type === 'PROFESSIONAL' ? 'ARTISAN' : 'BUSINESS'}
+                value={profileCategoryId}
+                customCategory={profileCustomCategory}
+                onChange={id => setProfileCategoryId(id)}
+                onCustomCategoryChange={setProfileCustomCategory}
+                required={false}
+                label="Main category"
+                placeholder="Choose a category"
+              />
+              <div className="vd-field">
+                <label className="vd-label" htmlFor="vd-p-desc">
+                  Description <span className="vd-label-note">{profileDescription.trim().length >= 30 ? 'Good length' : `${30 - profileDescription.trim().length} more characters`}</span>
+                </label>
                 <textarea
-                  rows={3}
+                  id="vd-p-desc"
+                  className="vd-input vd-textarea"
+                  rows={4}
+                  placeholder={isArtisan ? 'What you do, how long you have done it, where you work…' : 'What you sell, opening hours, delivery, what makes you different…'}
                   value={profileDescription}
                   onChange={e => setProfileDescription(e.target.value)}
                 />
               </div>
 
-              {/* Shop / Storefront Photo */}
-              <div style={{ marginBottom: 20 }}>
+              <h2 className="vd-form-section">How customers reach you</h2>
+              <div className="vd-grid-2">
+                <div className="vd-field">
+                  <label className="vd-label" htmlFor="vd-p-phone">Phone number</label>
+                  <div className="vd-input-icon">
+                    <Phone size={17} aria-hidden="true" />
+                    <input id="vd-p-phone" type="tel" inputMode="tel" required value={profilePhone} onChange={e => setProfilePhone(e.target.value)} />
+                  </div>
+                </div>
+                <div className="vd-field">
+                  <label className="vd-label" htmlFor="vd-p-wa">WhatsApp number</label>
+                  <div className="vd-input-icon">
+                    <MessageCircle size={17} aria-hidden="true" />
+                    <input id="vd-p-wa" type="tel" inputMode="tel" placeholder="0803 111 2233" value={profileWhatsapp} onChange={e => setProfileWhatsapp(e.target.value)} />
+                  </div>
+                </div>
+              </div>
+
+              <h2 className="vd-form-section">Where you are</h2>
+              <div className="vd-grid-2">
+                <div className="form-group">
+                  <label htmlFor="vd-p-area">Area</label>
+                  <select id="vd-p-area" value={profileLocationId} onChange={e => setProfileLocationId(e.target.value)}>
+                    <option value="">Choose your area</option>
+                    {locations.map(loc => (
+                      <option key={loc.id} value={loc.id}>{loc.area}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="vd-field">
+                  <label className="vd-label" htmlFor="vd-p-landmark">Nearby landmark</label>
+                  <input id="vd-p-landmark" className="vd-input" placeholder="e.g. Opposite LAUTECH second gate" value={profileLandmark} onChange={e => setProfileLandmark(e.target.value)} />
+                </div>
+              </div>
+              <div className="vd-field">
+                <label className="vd-label" htmlFor="vd-p-loc">Address or directions</label>
+                <input id="vd-p-loc" className="vd-input" value={profileLocation} onChange={e => setProfileLocation(e.target.value)} />
+              </div>
+
+              <h2 className="vd-form-section">{isArtisan ? 'Your photo' : 'Shop photo or logo'}</h2>
+              <div className="vd-field">
                 <ImageUpload
-                  label="Shop Front / Workshop Photo (Storefront Picture) 🏪"
+                  label={isArtisan ? 'A clear photo of you or your workshop' : 'Your shop front, sign or logo'}
                   value={profileImageUrl}
                   onChange={url => setProfileImageUrl(url)}
                 />
-                <small style={{ color: 'var(--text-muted)', display: 'block', marginTop: 4 }}>
-                  Upload a photo of your shop storefront, workshop, signpost, or studio so customers can easily locate and trust your business around LAUTECH.
-                </small>
+                <p className="vd-hint">A real photo helps customers recognise and trust you.</p>
               </div>
 
-              <button
-                type="submit"
-                className="btn-lime"
-                style={{ width: '100%', padding: '14px', fontSize: 15, fontWeight: 700 }}
-                disabled={isSavingProfile}
-              >
-                {isSavingProfile ? 'Saving Changes...' : 'Save Profile Changes →'}
-              </button>
+              <div className="vd-form-foot">
+                <button type="button" className="vd-btn vd-btn-outline" onClick={() => goTab('dashboard')}>Cancel</button>
+                <button type="submit" className="vd-btn vd-btn-lime" disabled={isSavingProfile}>
+                  {isSavingProfile ? 'Saving…' : <>Save changes <ArrowRight size={17} aria-hidden="true" /></>}
+                </button>
+              </div>
             </form>
-          </section>
+
+            <aside className="vd-card vd-preview">
+              <p className="vd-preview-label">How customers see you</p>
+              <div className="vd-preview-card">
+                <span className="vd-preview-photo">
+                  {profileImageUrl ? <img src={profileImageUrl} alt="" /> : <span>{(profileName || 'E').charAt(0).toUpperCase()}</span>}
+                </span>
+                <strong>{profileName || 'Your name'}</strong>
+                <span className="vd-preview-meta">
+                  {[categories.find(c => c.id === profileCategoryId)?.name || profileCustomCategory, locations.find(l => l.id === profileLocationId)?.area].filter(Boolean).join(' · ') || 'Category · Area'}
+                </span>
+                <p>{profileDescription.trim() || 'Your description shows here.'}</p>
+                <span className="vd-preview-btns">
+                  <span><Phone size={14} aria-hidden="true" /> Call</span>
+                  <span className="is-wa"><MessageCircle size={14} aria-hidden="true" /> WhatsApp</span>
+                </span>
+              </div>
+            </aside>
+          </div>
         )}
 
-        {/* Edit Item Modal */}
+        {/* Edit a listing */}
         {editingListing && (
-          <div className="modal-backdrop">
-            <div className="modal-card" style={{ maxWidth: 640 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                <h2 style={{ margin: 0, color: 'var(--primary)', fontSize: 18 }}>
-                  ✏️ Edit {editingListing.kind === 'PRODUCT' ? 'Product' : editingListing.kind === 'SERVICE' ? 'Service' : 'Project'}
-                </h2>
-                <button className="btn-outline btn-sm" onClick={() => setEditingListing(null)}>✕</button>
+          <div className="vd-modal-backdrop" onClick={() => setEditingListing(null)}>
+            <div className="vd-modal" role="dialog" aria-modal="true" aria-labelledby="vd-edit-title" onClick={e => e.stopPropagation()}>
+              <div className="vd-modal-head">
+                <h2 id="vd-edit-title">Edit {editingListing.kind === 'PRODUCT' ? 'product' : editingListing.kind === 'SERVICE' ? 'service' : 'past work'}</h2>
+                <button type="button" className="vd-icon-btn" onClick={() => setEditingListing(null)} aria-label="Close">
+                  <X size={18} />
+                </button>
               </div>
 
-              <form onSubmit={handleSaveEdit}>
-                <div className="form-group">
-                  <label>Item Type</label>
-                  <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
-                      <input
-                        type="radio"
-                        name="editKind"
-                        checked={editKind === 'PRODUCT'}
-                        onChange={() => setEditKind('PRODUCT')}
-                      />
-                      🛍️ Product
-                    </label>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
-                      <input
-                        type="radio"
-                        name="editKind"
-                        checked={editKind === 'SERVICE'}
-                        onChange={() => setEditKind('SERVICE')}
-                      />
-                      🔧 Service
-                    </label>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
-                      <input
-                        type="radio"
-                        name="editKind"
-                        checked={editKind === 'PROJECT'}
-                        onChange={() => setEditKind('PROJECT')}
-                      />
-                      📁 Project Showcase
-                    </label>
+              <form className="vd-form" onSubmit={handleSaveEdit}>
+                <div className="vd-field">
+                  <span className="vd-label">Type</span>
+                  <div className="vd-seg" role="radiogroup" aria-label="Type">
+                    {(['PRODUCT', 'SERVICE', 'PROJECT'] as const).map(k => (
+                      <button key={k} type="button" role="radio" aria-checked={editKind === k} className={editKind === k ? 'is-on' : ''} onClick={() => setEditKind(k)}>
+                        {k === 'PRODUCT' ? 'Product' : k === 'SERVICE' ? 'Service' : 'Past work'}
+                      </button>
+                    ))}
                   </div>
                 </div>
 
-                <div className="form-group">
-                  <label>Item Title *</label>
-                  <input
-                    required
-                    value={editName}
-                    onChange={e => setEditName(e.target.value)}
-                  />
+                <div className="vd-field">
+                  <label className="vd-label" htmlFor="vd-e-name">Name</label>
+                  <input id="vd-e-name" className="vd-input" required value={editName} onChange={e => setEditName(e.target.value)} />
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div className="vd-grid-2">
                   <CategorySelect
                     categories={categories}
                     listingType={editKind === 'PRODUCT' ? 'PRODUCT' : 'SERVICE'}
                     value={editCategoryId}
                     customCategory={editCustomCategory}
-                    onChange={(id) => setEditCategoryId(id)}
+                    onChange={id => setEditCategoryId(id)}
                     onCustomCategoryChange={setEditCustomCategory}
                     required={false}
                     label="Category"
-                    placeholder="Select category"
+                    placeholder="Choose a category"
                   />
-
                   <div className="form-group">
-                    <label>Campus Area</label>
-                    <select value={editLocationId} onChange={e => setEditLocationId(e.target.value)}>
-                      <option value="">Select area</option>
+                    <label htmlFor="vd-e-area">Area</label>
+                    <select id="vd-e-area" value={editLocationId} onChange={e => setEditLocationId(e.target.value)}>
+                      <option value="">Choose your area</option>
                       {locations.map(loc => (
                         <option key={loc.id} value={loc.id}>{loc.area}</option>
                       ))}
@@ -1925,80 +1303,75 @@ export const VendorWorkspacePage: React.FC<VendorWorkspacePageProps> = ({
                   </div>
                 </div>
 
-                <div className="form-group">
-                  <label>Price (₦)</label>
-                  <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      disabled={editPriceOnRequest}
-                      value={editPriceOnRequest ? '' : editPrice}
-                      onChange={e => setEditPrice(e.target.value)}
-                      style={{ flex: 1 }}
-                    />
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                <div className="vd-field">
+                  <label className="vd-label" htmlFor="vd-e-price">Price</label>
+                  <div className="vd-price">
+                    <div className={`vd-input-icon${editPriceOnRequest ? ' is-off' : ''}`}>
+                      <span aria-hidden="true">₦</span>
                       <input
-                        type="checkbox"
-                        checked={editPriceOnRequest}
-                        onChange={e => setEditPriceOnRequest(e.target.checked)}
+                        id="vd-e-price"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        disabled={editPriceOnRequest}
+                        value={editPriceOnRequest ? '' : editPrice}
+                        onChange={e => setEditPrice(e.target.value)}
                       />
-                      Negotiable / Quote
+                    </div>
+                    <label className="vd-switch">
+                      <input type="checkbox" checked={editPriceOnRequest} onChange={e => setEditPriceOnRequest(e.target.checked)} />
+                      <span className="vd-switch-track" aria-hidden="true" />
+                      Price on request
                     </label>
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                  <div className="form-group">
-                    <label>Visibility Status</label>
-                    <select value={editStatus} onChange={e => setEditStatus(e.target.value as any)}>
-                      <option value="ACTIVE">🟢 Active (Visible in Catalog)</option>
-                      <option value="HIDDEN">⚪ Hidden (Draft / Private)</option>
-                    </select>
+                <div className="vd-grid-2">
+                  <div className="vd-field">
+                    <span className="vd-label">Visible to customers?</span>
+                    <div className="vd-seg" role="radiogroup" aria-label="Visibility">
+                      <button type="button" role="radio" aria-checked={editStatus === 'ACTIVE'} className={editStatus === 'ACTIVE' ? 'is-on' : ''} onClick={() => setEditStatus('ACTIVE')}>
+                        <Eye size={14} aria-hidden="true" /> Live
+                      </button>
+                      <button type="button" role="radio" aria-checked={editStatus === 'HIDDEN'} className={editStatus === 'HIDDEN' ? 'is-on' : ''} onClick={() => setEditStatus('HIDDEN')}>
+                        <EyeOff size={14} aria-hidden="true" /> Hidden
+                      </button>
+                    </div>
                   </div>
-
-                  <div className="form-group">
-                    <label>Item Availability</label>
-                    <select value={editAvailabilityStatus} onChange={e => setEditAvailabilityStatus(e.target.value as AvailabilityStatus)}>
-                      <option value="AVAILABLE">🟢 Available</option>
-                      <option value="RESERVED">🟡 Reserved</option>
-                      <option value="SOLD">⚪ Sold</option>
-                    </select>
+                  <div className="vd-field">
+                    <span className="vd-label">Availability</span>
+                    <div className="vd-seg" role="radiogroup" aria-label="Availability">
+                      {(['AVAILABLE', 'RESERVED', 'SOLD'] as AvailabilityStatus[]).map(a => (
+                        <button key={a} type="button" role="radio" aria-checked={editAvailabilityStatus === a} className={editAvailabilityStatus === a ? 'is-on' : ''} onClick={() => setEditAvailabilityStatus(a)}>
+                          {a === 'AVAILABLE' ? 'Available' : a === 'RESERVED' ? 'Reserved' : 'Sold'}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
 
-                <MultiImageUpload
-                  label={
-                    editKind === 'PRODUCT'
-                      ? 'Product Photos (Cover photo + Gallery pictures) 📷'
-                      : editKind === 'PROJECT'
-                      ? 'Artisan Past Works Showcase (Portfolio Photos) 🛠️'
-                      : 'Service Photos & Samples (Up to 5 pictures) 💼'
-                  }
-                  maxImages={5}
-                  value={editImages}
-                  onChange={imgs => {
-                    setEditImages(imgs);
-                    const first = imgs.split(',')[0];
-                    if (first) setEditImageUrl(first);
-                  }}
-                />
-
-                <div className="form-group">
-                  <label>Description</label>
-                  <textarea
-                    rows={3}
-                    value={editDescription}
-                    onChange={e => setEditDescription(e.target.value)}
+                <div className="vd-field">
+                  <MultiImageUpload
+                    label="Photos (up to 5)"
+                    maxImages={5}
+                    value={editImages}
+                    onChange={imgs => {
+                      setEditImages(imgs);
+                      const first = imgs.split(',')[0];
+                      if (first) setEditImageUrl(first);
+                    }}
                   />
                 </div>
 
-                <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 16 }}>
-                  <button type="button" className="btn-outline btn-sm" onClick={() => setEditingListing(null)}>
-                    Cancel
-                  </button>
-                  <button type="submit" className="btn-lime btn-sm" disabled={isUpdating}>
-                    {isUpdating ? 'Saving...' : 'Save Changes'}
+                <div className="vd-field">
+                  <label className="vd-label" htmlFor="vd-e-desc">Description</label>
+                  <textarea id="vd-e-desc" className="vd-input vd-textarea" rows={3} value={editDescription} onChange={e => setEditDescription(e.target.value)} />
+                </div>
+
+                <div className="vd-form-foot">
+                  <button type="button" className="vd-btn vd-btn-outline" onClick={() => setEditingListing(null)}>Cancel</button>
+                  <button type="submit" className="vd-btn vd-btn-lime" disabled={isUpdating}>
+                    {isUpdating ? 'Saving…' : 'Save changes'}
                   </button>
                 </div>
               </form>
@@ -2006,36 +1379,47 @@ export const VendorWorkspacePage: React.FC<VendorWorkspacePageProps> = ({
           </div>
         )}
 
-        {/* Delete Confirmation Modal */}
+        {/* Confirm delete */}
         {itemToDelete && (
-          <div className="modal-backdrop">
-            <div className="modal-card" style={{ maxWidth: 460 }}>
-              <h3 style={{ margin: '0 0 10px 0', color: '#dc2626' }}>🗑️ Delete Item</h3>
-              <p style={{ fontSize: 14, color: '#374151', margin: '0 0 16px 0' }}>
-                Are you sure you want to permanently remove <strong>"{itemToDelete.name}"</strong> from your catalog? This action cannot be undone.
-              </p>
-              <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-                <button
-                  type="button"
-                  className="btn-outline btn-sm"
-                  onClick={() => setItemToDelete(null)}
-                  disabled={isDeleting}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  className="btn-danger btn-sm"
-                  onClick={handleConfirmDelete}
-                  disabled={isDeleting}
-                >
-                  {isDeleting ? 'Deleting...' : 'Yes, Delete Item'}
+          <div className="vd-modal-backdrop" onClick={() => !isDeleting && setItemToDelete(null)}>
+            <div className="vd-modal vd-modal-sm" role="alertdialog" aria-modal="true" aria-labelledby="vd-del-title" onClick={e => e.stopPropagation()}>
+              <span className="vd-empty-icon is-danger" aria-hidden="true"><Trash2 size={26} /></span>
+              <h2 id="vd-del-title">Delete “{itemToDelete.name}”?</h2>
+              <p>It will be removed from your listings and customers will no longer see it. This can’t be undone.</p>
+              <div className="vd-form-foot">
+                <button type="button" className="vd-btn vd-btn-outline" onClick={() => setItemToDelete(null)} disabled={isDeleting}>Keep it</button>
+                <button type="button" className="vd-btn vd-btn-danger" onClick={handleConfirmDelete} disabled={isDeleting}>
+                  {isDeleting ? 'Deleting…' : 'Yes, delete'}
                 </button>
               </div>
             </div>
           </div>
         )}
-      </main>
+        </main>
+      </div>
+
+      {/* Phone tab bar */}
+      <nav className="vd-tabbar" aria-label="Dashboard">
+        <button type="button" className={activeTab === 'dashboard' ? 'is-on' : ''} onClick={() => goTab('dashboard')}>
+          <LayoutDashboard size={21} /> Overview
+        </button>
+        <button
+          type="button"
+          className={['products', 'services', 'projects'].includes(activeTab) ? 'is-on' : ''}
+          onClick={() => goTab(isArtisan ? 'services' : 'products')}
+        >
+          {isArtisan ? <Wrench size={21} /> : <Box size={21} />} {isArtisan ? 'Services' : 'Listings'}
+        </button>
+        <button type="button" className="vd-tab-plus" onClick={() => onAdd(isArtisan ? 'SERVICE' : 'PRODUCT')} aria-label={isArtisan ? 'Add a service' : 'Add a product'}>
+          <span className="vd-plus"><Plus size={26} strokeWidth={2.6} /></span>
+        </button>
+        <button type="button" className={activeTab === 'leads' ? 'is-on' : ''} onClick={() => goTab('leads')}>
+          <Megaphone size={21} /> Requests
+        </button>
+        <button type="button" className={activeTab === 'settings' ? 'is-on' : ''} onClick={() => goTab('settings')}>
+          <UserRound size={21} /> Profile
+        </button>
+      </nav>
     </div>
   );
 };
